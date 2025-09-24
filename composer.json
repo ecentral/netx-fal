@@ -1,0 +1,63 @@
+{
+	"name": "fairway/netx-fal",
+	"version": "1.0.0",
+	"authors": [
+		{
+			"name": "eCentral GmbH",
+			"role": "Project Owner",
+			"email": "support@ecentral.de",
+			"homepage": "https://www.ecentral.de"
+		}
+	],
+	"type": "typo3-cms-extension",
+	"description": "",
+	"homepage": "https://www.ecentral.de",
+	"license": "GPL-2.0-or-later",
+	"keywords": [
+		"typo3",
+		"typo3 backend",
+		"netx"
+	],
+	"autoload": {
+		"psr-4": {
+			"Fairway\\NetXFal\\": "Classes/"
+		}
+	},
+	"config": {
+		"vendor-dir": ".Build/vendor",
+		"bin-dir": ".Build/bin",
+		"preferred-install": {
+			"typo3/cms-core": "source"
+		},
+		"sort-packages": true
+	},
+	"require": {
+		"typo3/cms-core": "^12 || ^13",
+		"guzzlehttp/psr7": "*",
+		"fairway/netx-fal-api": "*",
+		"ext-fileinfo": "*",
+		"ext-curl": "*"
+	},
+	"require-dev": {
+		"codeception/codeception": "^4.1",
+		"codeception/module-asserts": "^1.2",
+		"codeception/module-cli": "^1.1",
+		"codeception/module-webdriver": "^1.1",
+		"phpstan/phpstan": "^1.2.0",
+		"typo3/cms-frontend": "^12 || ^13",
+		"typo3/cms-install": "^12 || ^13",
+		"typo3/cms-filelist": "^12 || ^13",
+		"typo3/coding-standards": "^0.3.0",
+		"typo3/tailor": "^1.2",
+		"typo3/testing-framework": "^6.14.0"
+	},
+	"minimum-stability": "dev",
+	"prefer-stable": true,
+	"extra": {
+		"typo3/cms": {
+			"app-dir": ".Build",
+			"web-dir": ".Build/Web",
+			"extension-key": "netx_fal"
+		}
+	}
+}

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<T3DataStructure>
+    <ROOT>
+        <type>array</type>
+        <el>
+            <netxHost>
+
+                    <label>NetX Host</label>
+                    <config>
+                        <type>input</type>
+                        <eval>trim,required</eval>
+                        <size>256</size>
+                    </config>
+
+            </netxHost>
+            <netxApiKey>
+
+                    <label>NetX API key</label>
+                    <config>
+                        <type>input</type>
+                        <eval>trim,required</eval>
+                        <size>256</size>
+                    </config>
+
+            </netxApiKey>
+            <netxUser>
+
+                    <label>NetX User</label>
+                    <config>
+                        <type>input</type>
+                        <eval>trim,required</eval>
+                        <size>256</size>
+                    </config>
+
+            </netxUser>
+            <netxPassword>
+
+                    <label>NetX Password</label>
+                    <config>
+                        <type>input</type>
+                        <renderType>password</renderType>
+                        <eval>trim,required</eval>
+                        <size>256</size>
+                    </config>
+
+            </netxPassword>
+            <locale>
+
+                    <label>Locale</label>
+                    <config>
+                        <type>select</type>
+                        <renderType>selectSingle</renderType>
+                        <items>
+                            <numIndex index="0">
+                                <numIndex index="0">Deutsch</numIndex>
+                                <numIndex index="1">de</numIndex>
+                            </numIndex>
+                            <numIndex index="1">
+                                <numIndex index="0">English</numIndex>
+                                <numIndex index="1">en</numIndex>
+                            </numIndex>
+                        </items>
+                    </config>
+
+            </locale>
+            <defaultLocale>
+
+                    <label>Default locale</label>
+                    <config>
+                        <type>select</type>
+                        <renderType>selectSingle</renderType>
+                        <items>
+                            <numIndex index="0">
+                                <numIndex index="0">Deutsch</numIndex>
+                                <numIndex index="1">de</numIndex>
+                            </numIndex>
+                            <numIndex index="1">
+                                <numIndex index="0">English</numIndex>
+                                <numIndex index="1">en</numIndex>
+                            </numIndex>
+                        </items>
+                    </config>
+
+            </defaultLocale>
+            <roots>
+                <label>Root nodes (comma separated list of ids)</label>
+                <config>
+                    <type>input</type>
+                    <eval>trim</eval>
+                    <size>256</size>
+                </config>
+            </roots>
+            <cacheLifetimeInMinutes>
+                <label>Cache lifetime in minutes (0 &lt; lifetime &lt; 30)</label>
+                <config>
+                    <type>input</type>
+                    <eval>trim</eval>
+                    <size>4</size>
+                    <default>29</default>
+                </config>
+            </cacheLifetimeInMinutes>
+        </el>
+    </ROOT>
+</T3DataStructure>

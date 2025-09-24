@@ -1,0 +1,15 @@
+services:
+  _defaults:
+    autowire: true
+    autoconfigure: true
+    public: false
+
+  Fairway\NetXFal\Index\Extractor:
+    public: true
+
+  Fairway\NetXFal\Utility\Cache:
+    public: true
+
+  Fairway\NetXFal\ToolbarItem\CacheCleanerItem:
+    tags:
+      - name: backend.toolbar.item

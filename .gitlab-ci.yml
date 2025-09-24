@@ -1,0 +1,76 @@
+cache:
+  key: main-composer
+  paths:
+    - .cache
+
+services:
+  - name: docker:20.10-dind
+    alias: docker
+
+image: typo3/core-testing-docker:latest
+
+stages:
+  - composer
+  - unit
+  - functional
+  - acceptance
+
+composer:
+  stage: composer
+  script:
+    - Build/Scripts/runTests.sh -s composerValidate -p 7.4
+    - Build/Scripts/runTests.sh -s composerUpdate -p 7.4
+
+unit php 7.4:
+  stage: unit
+  script:
+    - Build/Scripts/runTests.sh -s composerUpdate -p 7.4
+    - Build/Scripts/runTests.sh -s unit -p 7.4
+
+unit php 8.0:
+  stage: unit
+  script:
+    - Build/Scripts/runTests.sh -s composerUpdate -p 8.0
+    - Build/Scripts/runTests.sh -s unit -p 8.0
+
+unit php 8.1:
+  stage: unit
+  script:
+    - Build/Scripts/runTests.sh -s composerUpdate -p 8.1
+    - Build/Scripts/runTests.sh -s unit -p 8.1
+
+functional php 7.4:
+  stage: functional
+  script:
+    - Build/Scripts/runTests.sh -s composerUpdate -p 7.4
+    - Build/Scripts/runTests.sh -s functional -p 7.4
+
+functional php 8.0:
+  stage: functional
+  script:
+    - Build/Scripts/runTests.sh -s composerUpdate -p 8.0
+    - Build/Scripts/runTests.sh -s functional -p 8.0
+
+functional php 8.1:
+  stage: functional
+  script:
+    - Build/Scripts/runTests.sh -s composerUpdate -p 8.1
+    - Build/Scripts/runTests.sh -s functional -p 8.1
+
+acceptance php 7.4:
+  stage: acceptance
+  script:
+    - Build/Scripts/runTests.sh -s composerUpdate -p 7.4
+    - Build/Scripts/runTests.sh -s acceptance -p 7.4
+
+acceptance php 8.0:
+  stage: acceptance
+  script:
+    - Build/Scripts/runTests.sh -s composerUpdate -p 8.0
+    - Build/Scripts/runTests.sh -s acceptance -p 8.0
+
+acceptance php 8.1:
+  stage: acceptance
+  script:
+    - Build/Scripts/runTests.sh -s composerUpdate -p 8.1
+    - Build/Scripts/runTests.sh -s acceptance -p 8.1

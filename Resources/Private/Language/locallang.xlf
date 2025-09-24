@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.0">
+	<file source-language="en" datatype="plaintext" original="messages" date="2024-07-03T12:00:00Z" product-name="fairway-netx">
+		<header/>
+		<body>
+			<trans-unit id="be_clear_cache_title" resname="be_clear_cache_title">
+				<source>Clear NetX-Cache</source>
+			</trans-unit>
+			<trans-unit id="be_clear_cache_description" resname="be_clear_cache_description">
+				<source>Clear the NetX Filestorage Cache.</source>
+			</trans-unit>
+		</body>
+	</file>
+</xliff>

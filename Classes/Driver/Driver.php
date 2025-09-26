@@ -14,6 +14,9 @@ use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Resource\Capabilities;
 use TYPO3\CMS\Core\Resource\Driver\AbstractHierarchicalFilesystemDriver;
 use TYPO3\CMS\Core\Resource\Exception;
+use TYPO3\CMS\Core\Resource\FileInterface;
+use TYPO3\CMS\Core\Resource\ProcessedFile;
+use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class Driver extends AbstractHierarchicalFilesystemDriver
@@ -28,6 +31,7 @@ class Driver extends AbstractHierarchicalFilesystemDriver
     protected Capabilities $capabilities;
     protected array $configuration;
     protected ?int $storageUid;
+    protected ?ResourceStorage $storage = null;
 
     public function __construct(array $configuration = [])
     {
@@ -92,15 +96,29 @@ class Driver extends AbstractHierarchicalFilesystemDriver
         return $ret;
     }
 
+    public function setStorage(ResourceStorage $storage): void
+    {
+        $this->storage = $storage;
+    }
+
     /**
      * Returns the public URL to a file.
      * Either fully qualified URL or relative to PATH_site (rawurlencoded).
      */
     public function getPublicUrl(string $identifier): ?string
     {
-        $ret = self::$client->getUrl($identifier, 'publicUrl');
-        $this->log->debug("$this->instance: getPublicURL($identifier): $ret");
-        return null;
+        //Storage not yet set → no PublicUrl possible
+        if ($this->storage === null) {
+            return null;
+        }
+        try {
+            $file = $this->storage->getFile($identifier);
+            if ($file instanceof \TYPO3\CMS\Core\Resource\ProcessedFile) {
+                return $file->getPublicUrl();
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
     }
 
     /**
@@ -290,24 +308,7 @@ class Driver extends AbstractHierarchicalFilesystemDriver
      */
     public function getFileContents(string $fileIdentifier): string
     {
-        $streamContext = stream_context_create([
-            'http' => [
-                'method'  => 'GET',
-                'header' => [
-                    self::$client->createAuthenticationHeader(),
-                    'Accept-Encoding: gzip, deflate'
-                ],
-                'max_redirects'    => 10,
-                'protocol_version' => 1.1,
-                'timeout' => 5,
-                'ignore_errors' => true,
-                'ssl' => [
-                    'verify_peer'      => true,
-                    'verify_peer_name' => true,
-                ],
-            ],
-        ]);
-        return file_get_contents(self::$client->getUrl($fileIdentifier), false, $streamContext);
+        return self::$client->getFileContents($fileIdentifier);
     }
 
     /**
@@ -348,28 +349,48 @@ class Driver extends AbstractHierarchicalFilesystemDriver
      */
     public function getFileForLocalProcessing(string $fileIdentifier, bool $writable = true): string
     {
-        $tmp = GeneralUtility::tempnam('fal-tempfile-', '.' . self::$client->getFileInfo($fileIdentifier)['info']['extension']);
+        $fileInfo = self::$client->getFileInfo($fileIdentifier);
+        $extension = $fileInfo['info']['extension'] ?? 'bin';
+
+        // Temp-Datei anlegen
+        $tmpFile = GeneralUtility::tempnam('fal-tempfile-', '.' . $extension);
+
         $streamContext = stream_context_create([
             'http' => [
                 'method'  => 'GET',
-                'header' => [
+                'header'  => [
                     self::$client->createAuthenticationHeader(),
-                    'Accept-Encoding: gzip, deflate'
+                    'Accept-Encoding: gzip, deflate',
                 ],
                 'max_redirects'    => 10,
                 'protocol_version' => 1.1,
-                'timeout' => 5,
-                'ignore_errors' => true,
+                'timeout'          => 10,
+                'ignore_errors'    => true,
                 'ssl' => [
                     'verify_peer'      => true,
                     'verify_peer_name' => true,
                 ],
             ],
         ]);
-        $stream = @fopen(self::$client->getUrl($fileIdentifier), 'r', false, $streamContext);
-        $status = file_put_contents($tmp, $stream);
-        @fclose($stream);
-        return $tmp;
+
+        $remoteStream = fopen(self::$client->getUrl($fileIdentifier), 'r', false, $streamContext);
+        if (!$remoteStream) {
+            throw new \RuntimeException('Could not open remote stream for ' . $fileIdentifier);
+        }
+
+        $localStream = fopen($tmpFile, 'w+b');
+        if (!$localStream) {
+            fclose($remoteStream);
+            throw new \RuntimeException('Could not open local temp file ' . $tmpFile);
+        }
+
+        // Copy remote → local
+        stream_copy_to_stream($remoteStream, $localStream);
+
+        fclose($remoteStream);
+        fclose($localStream);
+
+        return $tmpFile;
     }
 
     /**

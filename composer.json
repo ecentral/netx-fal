@@ -36,7 +36,8 @@
 		"guzzlehttp/psr7": "*",
 		"fairway/netx-fal-api": "*",
 		"ext-fileinfo": "*",
-		"ext-curl": "*"
+		"ext-curl": "*",
+		"ext-gd": "*"
 	},
 	"require-dev": {
 		"codeception/codeception": "^4.1",

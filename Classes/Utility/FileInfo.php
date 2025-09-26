@@ -32,10 +32,6 @@ class FileInfo
         string $host,
         string $apiKey,
         int $storage,
-        $imageFormat,
-        $videoFormat,
-        $documentFormat,
-        $othersFormat,
         array $configuredInformation = null
     )
     {

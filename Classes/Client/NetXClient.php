@@ -18,8 +18,8 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class NetXClient
 {
-    private const X_API_KEY_IDENTIFIER = 'Authorization';
-    private const X_API_KEY_PREFIX = 'apiToken';
+    public const X_API_KEY_IDENTIFIER = 'Authorization';
+    public const X_API_KEY_PREFIX = 'apiToken';
 
     protected string $host;
     protected string $locale;
@@ -59,6 +59,11 @@ class NetXClient
     public function createAuthenticationHeader(): string
     {
         return self::X_API_KEY_IDENTIFIER . ': ' . self::X_API_KEY_PREFIX . ' ' . $this->apiKey;
+
+    }
+    public function getApiKey(): string
+    {
+        return $this->apiKey;
 
     }
     public function initConfiguration(array $configuration): void
@@ -177,7 +182,6 @@ class NetXClient
 
     private function querySubfolder(string $identifier): array
     {
-
         $folder = $this->getClient()->folderService()->getFolderById((int)$this->extractId($identifier));
         $folderInfo = RpcClientFolderUtility::getFolderInfoByFolder($folder, $this->storage, $this->locale);
 
@@ -198,7 +202,6 @@ class NetXClient
 
     private function querySubfolderAndAssets(string $identifier): array
     {
-
         $folder = $this->getClient()->folderService()->getFolderById((int)$this->extractId($identifier));
         $folderInfo = RpcClientFolderUtility::getFolderInfoByFolder($folder, $this->storage);
 
@@ -225,37 +228,6 @@ class NetXClient
             }
         }
 
-        return [$folderInfo, $foldernames, $folders, $filenames, $files];
-
-
-        $typeId = 101;
-        $collectionApi = new CollectionsApi($this->getClient(), $this->clientConfiguration);
-        $collection = $collectionApi->getCollection($this->extractId($identifier), $this->locale);
-        $folderInfo = RestClientFolderUtility::getFolderInfoByCollection($collection, $this->storage, $this->locale);
-
-        $foldernames = [];
-        $folders = [];
-        $filenames = [];
-        $files = [];
-        if ($collection->getHasChildren()) {
-            $childCollections = $collectionApi->getCollections($this->locale, $collection->getId(), $typeId);
-            foreach ($childCollections->getContent() as $childCollection) {
-                $folderInfo['children'][] = $childCollection->getId();
-                $foldernames[RestClientFolderUtility::getFolderName($childCollection->getName(), $this->locale)] = $childCollection->getId();
-                $folders[] = ['name' => RestClientFolderUtility::getFolderName($childCollection->getName(), $this->locale), 'identifier' => $childCollection->getId()];
-            }
-
-        }
-        $assetsApi = new AssetsApi($this->getClient(), $this->clientConfiguration);
-        $coll_id = $collection->getId();
-        $assetsByCollection = $assetsApi->getAssets($this->locale, $coll_id, null, null, null, false, 1, null, null, null, ['informationFields', 'fileProperties']);
-        foreach ($assetsByCollection->getContent() as $asset) {
-            //if($asset->getCurrentVersion()->getFileCategory() != FileCategory::UNKNOWN) {
-                $folderInfo['assets'][] = $asset->getId();
-                $files[] = $this->toAsset($asset);
-                $filenames[$asset->getName()] = $asset->getId();
-            //}
-        }
         return [$folderInfo, $foldernames, $folders, $filenames, $files];
     }
 
@@ -318,7 +290,6 @@ class NetXClient
         $this->log->debug("getFolderInfo($identifier, $extract): " . json_encode($this->cache->get($key . $extract)));
 
         return $this->cache->get($key . $extract);
-
     }
 
     public function getFileInfo(string $identifier): bool|array
@@ -356,7 +327,7 @@ class NetXClient
             $originalDownloadUrl = $download->getUrl();
         }*/
 
-        $fileInfo = new FileInfo($asset, $this->host, $this->apiKey, $this->storage, $this->imageFormat, $this->videoFormat, $this->documentFormat, $this->othersFormat);
+        $fileInfo = new FileInfo($asset, $this->host, $this->apiKey, $this->storage);
 
         return $fileInfo->toArray();
     }
@@ -393,6 +364,28 @@ class NetXClient
         $url = $fileInfo[$type];
         $this->log->debug("getUrl($identifier, $type): $url");
         return $url;
+    }
+
+    public function getFileContents(string $fileIdentifier): string
+    {
+        $streamContext = stream_context_create([
+            'http' => [
+                'method'  => 'GET',
+                'header' => [
+                    self::createAuthenticationHeader(),
+                    'Accept-Encoding: gzip, deflate'
+                ],
+                'max_redirects'    => 10,
+                'protocol_version' => 1.1,
+                'timeout' => 5,
+                'ignore_errors' => true,
+                'ssl' => [
+                    'verify_peer'      => true,
+                    'verify_peer_name' => true,
+                ],
+            ],
+        ]);
+        return file_get_contents(self::getUrl($fileIdentifier), false, $streamContext);
     }
 
 }

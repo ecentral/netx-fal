@@ -58,7 +58,7 @@ class FileInfo
         /*$format = (($asset->getCurrentVersion()->getFileCategory() == 'IMAGE') ? $imageFormat :
             (($asset->getCurrentVersion()->getFileCategory() == 'VIDEO') ? $videoFormat : $othersFormat));*/
 
-        $this->initImagesSize($asset);
+        $this->initImagesSize($asset, $host, $apiKey);
         $this->initPublicUrl($asset, $host);
         $this->initNameAndExtension($asset);
         $this->initDecriptions($asset, $configuredInformation);
@@ -98,26 +98,17 @@ class FileInfo
         }
     }
 
-    public function initImagesSize(Asset $asset)
+    public function initImagesSize(Asset $asset, string $host = '', string $apiKey = '')
     {
-        $width = $asset->getWidth();
-        $height = $asset->getHeight();
+        $width = (int)($asset->getWidth() ?? 0);
+        $height = (int)($asset->getHeight() ?? 0);
 
-        if ($width && $height) {
-            $max = $this->getMaxSize($this->mimetype);
-            if (($max > 0) and (($width > $max) or ($height > $max))) {
-                if ($width > $height) {
-                    $this->height = intval($height * $max / $width);
-                    $this->width = $max;
-                } else {
-                    $this->width = intval($width * $max / $height);
-                    $this->height = $max;
-                }
-            }
-        } else {
-            $this->height = 0;
-            $this->width = 0;
+        if (($width === 0 || $height === 0) && str_starts_with($this->mimetype, 'image/')) {
+            [$width, $height] = $this->detectOriginalImageSize($asset, $host, $apiKey) ?? [$width, $height];
         }
+
+        $this->width = $width;
+        $this->height = $height;
     }
 
     private function initPublicUrl(Asset $asset, string $host)
@@ -236,5 +227,60 @@ class FileInfo
             'x-conference', 'model', 'message', 'font', 'audio', 'application' => 0,
             default => 0,
         };
+    }
+
+    private function detectOriginalImageSize(Asset $asset, string $host, string $apiKey): ?array
+    {
+        $url = $asset->getOriginalUrl($host);
+        if ($url === null || $url === '') {
+            return null;
+        }
+
+        $chunk = $this->fetchImageHeaderChunk($url, $apiKey);
+        if ($chunk === null) {
+            return null;
+        }
+
+        return $this->detectImageSizeFromString($chunk);
+    }
+
+    private function fetchImageHeaderChunk(string $url, string $apiKey, int $byteCount = 65536, int $timeout = 10): ?string
+    {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => $timeout,
+            CURLOPT_HTTPHEADER => [
+                'Range: bytes=0-' . max(0, $byteCount - 1),
+                'Accept-Encoding: identity',
+                'Authorization: apiToken ' . $apiKey,
+            ],
+            CURLOPT_NOBODY => false,
+        ]);
+
+        $chunk = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($chunk === false || ($code !== 0 && ($code < 200 || $code >= 400))) {
+            return null;
+        }
+
+        return $chunk;
+    }
+
+    private function detectImageSizeFromString(string $content): ?array
+    {
+        $imageSize = @getimagesizefromstring($content);
+        if ($imageSize === false) {
+            return null;
+        }
+
+        return [
+            (int)$imageSize[0],
+            (int)$imageSize[1],
+        ];
     }
 }

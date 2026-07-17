@@ -14,6 +14,10 @@ use TYPO3\CMS\Core\Information\Typo3Version;
 use TYPO3\CMS\Core\Resource\Driver\DriverRegistry;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
+$GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects'][\TYPO3\CMS\Core\Resource\ResourceStorage::class] = [
+    'className' => \Fairway\NetXFal\Xclass\Core\Resource\ResourceStorage::class,
+];
+
 // Driver
 $driverClass = (new Typo3Version())->getMajorVersion() < 13
     ? implode('\\', ['Fairway', 'NetXFal', 'Driver', 'DriverV12'])
@@ -37,7 +41,7 @@ $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations'][$driverClas
 ];
 
 // Extractor
-$extractorRegistry = new \TYPO3\CMS\Core\Resource\Index\ExtractorRegistry();
+$extractorRegistry = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Resource\Index\ExtractorRegistry::class);
 $extractorRegistry->registerExtractionService(\Fairway\NetXFal\Index\Extractor::class);
 
 // Processor

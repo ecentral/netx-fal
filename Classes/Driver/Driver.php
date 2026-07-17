@@ -17,6 +17,7 @@ use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Resource\Capabilities;
 use TYPO3\CMS\Core\Resource\Driver\AbstractHierarchicalFilesystemDriver;
 use TYPO3\CMS\Core\Resource\Exception;
+use TYPO3\CMS\Core\Resource\MimeTypeDetector;
 use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -158,7 +159,13 @@ class Driver extends AbstractHierarchicalFilesystemDriver
      */
     public function fileExists(string $fileIdentifier): bool
     {
-        $ret = ((substr($fileIdentifier, -1, 1) != '/') and ($this->getFileInfoByIdentifier($fileIdentifier) !== null));
+        if ($this->folderExists($fileIdentifier)) {
+            $this->log->debug("$this->instance: fileExists($fileIdentifier): false");
+            return false;
+        }
+
+        $fileInfo = self::$client->getFileInfo($fileIdentifier)['info'] ?? null;
+        $ret = ((substr($fileIdentifier, -1, 1) != '/') and is_array($fileInfo) and $fileInfo !== []);
         $this->log->debug("$this->instance: fileExists($fileIdentifier): " . ($ret ? 'true' : 'false'));
         return $ret;
     }
@@ -174,12 +181,8 @@ class Driver extends AbstractHierarchicalFilesystemDriver
             return true;
         }
 
-        try {
-            $this->getFolderInfoByIdentifier($folderIdentifier);
-            $ret = true;
-        } catch (\Throwable $exception) {
-            $ret = false;
-        }
+        $folderInfo = $this->getFolderInfoByIdentifier($folderIdentifier);
+        $ret = $folderInfo !== [];
         $this->log->debug("$this->instance: folderExists($folderIdentifier): " . ($ret ? 'true' : 'false'));
         return $ret;
     }
@@ -448,18 +451,54 @@ class Driver extends AbstractHierarchicalFilesystemDriver
      */
     public function getFileInfoByIdentifier(string $fileIdentifier, array $propertiesToExtract = []): array
     {
-        $ret = self::$client->getFileInfo($fileIdentifier)['info'];
+        $ret = self::$client->getFileInfo($fileIdentifier)['info'] ?? [];
+        if ($ret !== []) {
+            $ret = $this->normalizeFileInfo($ret, $fileIdentifier);
+        }
         $this->log->debug("$this->instance: getFileInfoByIdentifier($fileIdentifier, " . json_encode($propertiesToExtract) . '): ' . json_encode($ret));
         return $ret;
     }
 
+    private function normalizeFileInfo(array $fileInfo, string $fileIdentifier): array
+    {
+        $fileInfo['identifier'] ??= $fileIdentifier;
+        $fileInfo['identifier'] = (string)$fileInfo['identifier'];
+        $fileInfo['name'] ??= basename($fileIdentifier);
+        $fileInfo['extension'] ??= pathinfo($fileInfo['name'], PATHINFO_EXTENSION);
+
+        if (!isset($fileInfo['mime_type']) || !is_string($fileInfo['mime_type']) || trim($fileInfo['mime_type']) === '') {
+            $fileInfo['mime_type'] = $this->getMimeTypeFromExtension((string)$fileInfo['extension']);
+        }
+
+        return $fileInfo;
+    }
+
+    private function getMimeTypeFromExtension(string $extension): string
+    {
+        $extension = ltrim(strtolower($extension), '.');
+        if ($extension !== '') {
+            $mimeTypes = GeneralUtility::makeInstance(MimeTypeDetector::class)->getMimeTypesForFileExtension($extension);
+            if ($mimeTypes !== []) {
+                return $mimeTypes[0];
+            }
+        }
+
+        return 'application/octet-stream';
+    }
+
     /**
      * Returns information about a file.
+     *
+     * @return array<string, mixed>
      */
     public function getFolderInfoByIdentifier(string $folderIdentifier): array
     {
         $folderIdentifier = rtrim($folderIdentifier, '/\\') . '/';
-        $ret = self::$client->getFolderInfo($folderIdentifier)['info'];
+        try {
+            $ret = self::$client->getFolderInfo($folderIdentifier)['info'] ?? [];
+        } catch (\Throwable) {
+            $ret = [];
+        }
         //$this->log->debug("$this->instance: getFolderInfoByIdentifier($folderIdentifier): " . json_encode($ret));
         return $ret;
     }

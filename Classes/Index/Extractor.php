@@ -91,8 +91,7 @@ class Extractor implements ExtractorInterface
     public function extractMetaData(File $file, array $previousExtractedData = []): array
     {
         $this->log->debug('extractMetaData(' . $file->getIdentifier() . ', ' . json_encode($previousExtractedData) . ')');
-        $client = DriverUtility::getClient();
 
-        return $client->getFileInfo($file->getIdentifier())['info'];
+        return $file->getStorage()->getFileInfoByIdentifier($file->getIdentifier());
     }
 }

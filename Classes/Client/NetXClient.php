@@ -1,17 +1,22 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
+
+/*
+ * This file is part of the "netx_fal" Extension for TYPO3 CMS.
+ *
+ * For the full copyright and license information, please read the
+ * LICENSE file that was distributed with this source code.
+ */
 
 namespace Fairway\NetXFal\Client;
 
+use Exception;
 use Fairway\NetXFal\Utility\Cache;
 use Fairway\NetXFal\Utility\FileInfo;
-use Fairway\NetXFal\Utility\FileInfo\Format;
-use Exception;
 use Fairway\NetXFal\Utility\RpcClientFolderUtility;
 use Fairway\NetXFalApi\Client;
 use Fairway\NetXFalApi\Models\Asset;
-use Fairway\NetXFalApi\Services\AssetService;
 use TYPO3\CMS\Core\Log\Logger;
 use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
@@ -92,8 +97,8 @@ class NetXClient
         }
 
         $this->roots = array_map(
-            static fn(string $value): string => '/' . trim($value, '/') . '/',
-            array_filter(array_map('trim', explode(',', $roots)), static fn(string $value): bool => $value !== '')
+            static fn (string $value): string => '/' . trim($value, '/') . '/',
+            array_filter(array_map('trim', explode(',', $roots)), static fn (string $value): bool => $value !== '')
         );
     }
 
@@ -171,8 +176,9 @@ class NetXClient
         }
 
         $folder = $this->getClient()->folderService();
-        if($identifier == '/')
+        if ($identifier == '/') {
             $identifier = '/1/';
+        }
         $folder = $folder->getFolderById((int)$this->extractId($identifier));
 
         $folderInfo = RpcClientFolderUtility::getFolderInfoByFolder($folder, $this->storage);
@@ -299,10 +305,10 @@ class NetXClient
         if (!$this->cache->has($key)) {
             try {
                 $assets = $this->getClient()->assetService()->getAssets([$fileId]);
-                if(count($assets) == 1) {
+                if (count($assets) == 1) {
                     $this->cache->set($key, $this->toAsset($assets[0]), [], $this->cacheLifetime);
                 }
-            } catch (Exception $exception){
+            } catch (Exception $exception) {
                 $this->log->error("getFileInfo($fileId)" . json_encode($this->cache->get($key)) . ':' . $exception->getMessage());
                 $this->cache->set($key, ['info' => null], [], 60); // short cache on error
             }

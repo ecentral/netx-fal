@@ -1,5 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
+/*
+ * This file is part of the "netx_fal" Extension for TYPO3 CMS.
+ *
+ * For the full copyright and license information, please read the
+ * LICENSE file that was distributed with this source code.
+ */
+
 namespace Fairway\NetXFal\Processor;
 
 use Psr\Http\Message\ServerRequestInterface;
@@ -17,7 +26,6 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class NetXImageProcessor implements ProcessorInterface
 {
-
     protected Logger $log;
 
     public function canProcessTask(TaskInterface $task): bool
@@ -73,12 +81,23 @@ class NetXImageProcessor implements ProcessorInterface
 
         // Fallback & Clamping
         if ($rect->isEmpty() || $cropW <= 0 || $cropH <= 0) {
-            $cropX = 0; $cropY = 0; $cropW = $origWidth; $cropH = $origHeight;
+            $cropX = 0;
+            $cropY = 0;
+            $cropW = $origWidth;
+            $cropH = $origHeight;
         } else {
-            if ($cropX < 0) { $cropX = 0; }
-            if ($cropY < 0) { $cropY = 0; }
-            if ($cropX + $cropW > $origWidth)  { $cropW = $origWidth  - $cropX; }
-            if ($cropY + $cropH > $origHeight) { $cropH = $origHeight - $cropY; }
+            if ($cropX < 0) {
+                $cropX = 0;
+            }
+            if ($cropY < 0) {
+                $cropY = 0;
+            }
+            if ($cropX + $cropW > $origWidth) {
+                $cropW = $origWidth  - $cropX;
+            }
+            if ($cropY + $cropH > $origHeight) {
+                $cropH = $origHeight - $cropY;
+            }
         }
 
         // Determine target measurements *as for the core*
@@ -99,7 +118,7 @@ class NetXImageProcessor implements ProcessorInterface
             $cfgW  = (int)($task->getConfiguration()['width']    ?? 0);
             $cfgH  = (int)($task->getConfiguration()['height']   ?? 0);
             $maxW  = (int)($task->getConfiguration()['maxWidth'] ?? 0);
-            $maxH  = (int)($task->getConfiguration()['maxHeight']?? 0);
+            $maxH  = (int)($task->getConfiguration()['maxHeight'] ?? 0);
 
             // Target box: width/height preferred, otherwise maxWidth/maxHeight, otherwise crop size
             $boxW = $cfgW ?: $maxW ?: $cropW;
@@ -131,7 +150,7 @@ class NetXImageProcessor implements ProcessorInterface
         }
 
         $dst = imagecreatetruecolor($targetWidth, $targetHeight);
-        if (in_array($targetExt, ['png','gif','webp'], true)) {
+        if (in_array($targetExt, ['png', 'gif', 'webp'], true)) {
             imagealphablending($dst, false);
             imagesavealpha($dst, true);
             $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
@@ -140,11 +159,16 @@ class NetXImageProcessor implements ProcessorInterface
 
         // Core-compliant: first crop, then scale to the size calculated by the core
         if (!imagecopyresampled(
-            $dst, $src,
-            0, 0,
-            $cropX, $cropY,
-            $targetWidth, $targetHeight,
-            $cropW, $cropH
+            $dst,
+            $src,
+            0,
+            0,
+            $cropX,
+            $cropY,
+            $targetWidth,
+            $targetHeight,
+            $cropW,
+            $cropH
         )) {
             imagedestroy($src);
             imagedestroy($dst);
@@ -154,8 +178,10 @@ class NetXImageProcessor implements ProcessorInterface
         // Write & place in the expected destination path
         $tmp = GeneralUtility::tempnam('netx-proc-', '.' . $targetExt);
         switch ($targetExt) {
-            case 'png':  imagepng($dst,  $tmp); break;
-            case 'gif':  imagegif($dst,  $tmp); break;
+            case 'png':  imagepng($dst, $tmp);
+                break;
+            case 'gif':  imagegif($dst, $tmp);
+                break;
             case 'webp':
                 if (!function_exists('imagewebp') || !imagewebp($dst, $tmp, 80)) {
                     $targetExt = 'jpg';
@@ -186,7 +212,14 @@ class NetXImageProcessor implements ProcessorInterface
 
         $this->log->debug(sprintf(
             'Processed %s → %s (%dx%d) crop %dx%d@%d,%d',
-            $task->getName(), $targetPath, $targetWidth, $targetHeight, $cropW, $cropH, $cropX, $cropY
+            $task->getName(),
+            $targetPath,
+            $targetWidth,
+            $targetHeight,
+            $cropW,
+            $cropH,
+            $cropX,
+            $cropY
         ));
     }
 

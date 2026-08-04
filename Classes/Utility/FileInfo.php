@@ -1,8 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
+/*
+ * This file is part of the "netx_fal" Extension for TYPO3 CMS.
+ *
+ * For the full copyright and license information, please read the
+ * LICENSE file that was distributed with this source code.
+ */
+
 namespace Fairway\NetXFal\Utility;
 
-use Fairway\NetXFal\Utility\MimeTypeSniffer;
 use Fairway\NetXFalApi\Models\Asset;
 use TYPO3\CMS\Core\Utility\PathUtility;
 
@@ -33,8 +41,7 @@ class FileInfo
         string $apiKey,
         int $storage,
         array $configuredInformation = null
-    )
-    {
+    ) {
         $this->identifier = $asset->getId();
         $this->identifierHash = sha1($this->identifier);
         $this->folderHash = sha1(PathUtility::dirname($this->identifier));
@@ -86,13 +93,13 @@ class FileInfo
 
     public function initDecriptions(Asset $asset, ?array $configuredInformation)
     {
-        if($configuredInformation == null) {
+        if ($configuredInformation == null) {
             return;
         }
-        foreach($asset->getInformationFieldValueSets() as $key => $valueSet) {
+        foreach ($asset->getInformationFieldValueSets() as $key => $valueSet) {
             $informationFieldValueObject = $valueSet->getInformationFieldValues();
-            foreach($informationFieldValueObject as $informationFieldValue) {
-                if(isset($configuredInformation[$informationFieldValue->getField()])){
+            foreach ($informationFieldValueObject as $informationFieldValue) {
+                if (isset($configuredInformation[$informationFieldValue->getField()])) {
                     $informationFieldValue->getField();
                     $informationFieldValue->getValue();
                 }
@@ -130,7 +137,8 @@ class FileInfo
         $this->publicUrl = $asset->getOriginalUrl($host);
     }
 
-    public function initNameAndExtension(Asset $asset){
+    public function initNameAndExtension(Asset $asset)
+    {
         $this->name = $asset->getName();
         $this->extension = $asset->getExtension();
         if (substr($this->name, -strlen($this->extension)) !== $this->extension) {
@@ -232,8 +240,7 @@ class FileInfo
     {
         $mimeTypePattern = preg_split('/\//', $mimeType);
         $format = $mimeTypePattern[0] ?? 'application';
-        return match($format)
-        {
+        return match($format) {
             'image' => 3000,
             'text', 'video' => 320,
             'x-conference', 'model', 'message', 'font', 'audio', 'application' => 0,

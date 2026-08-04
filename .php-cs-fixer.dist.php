@@ -1,7 +1,7 @@
 <?php
 
 $headerTemplate = <<<HEADER
-This file is part of the "eyebase_fal" Extension for TYPO3 CMS.
+This file is part of the "netx_fal" Extension for TYPO3 CMS.
 
 For the full copyright and license information, please read the
 LICENSE file that was distributed with this source code.

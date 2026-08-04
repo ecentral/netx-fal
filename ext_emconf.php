@@ -9,6 +9,8 @@ declare(strict_types=1);
  * LICENSE file that was distributed with this source code.
  */
 
+$_EXTKEY = 'netx_fal';
+
 $EM_CONF[$_EXTKEY] = [
     'title' => 'NetX (FAL)',
     'description' => 'Provides a FAL driver for the NetX DAM.',

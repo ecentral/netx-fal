@@ -36,6 +36,7 @@ class CacheCleanerItem implements ToolbarItemInterface, RequestAwareToolbarItemI
     protected array $cacheActions = [];
     protected array $optionValues = [];
     private ServerRequestInterface $request;
+    private ?ViewFactoryInterface $viewFactory = null;
 
     public function __construct(
         UriBuilder $uriBuilder,
@@ -97,6 +98,9 @@ class CacheCleanerItem implements ToolbarItemInterface, RequestAwareToolbarItemI
             $view->setLayoutRootPaths([GeneralUtility::getFileAbsFileName('EXT:netx_fal/Resources/Private/Layouts/')]);
             $view->setTemplate('ToolbarItems/ClearCumulusCacheToolbarItemSingle.html');
         } else {
+            if ($this->viewFactory === null) {
+                $this->viewFactory = GeneralUtility::makeInstance(ViewFactoryInterface::class);
+            }
             $viewFactoryData = new ViewFactoryData(
                 templateRootPaths: ['EXT:netx_fal/Resources/Private/Templates/'],
                 partialRootPaths: ['EXT:netx_fal/Resources/Private/Partials/'],

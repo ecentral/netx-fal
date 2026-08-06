@@ -1,9 +1,12 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: CMA
- * Date: 05/11/2018
- * Time: 11:18
+
+declare(strict_types=1);
+
+/*
+ * This file is part of the "netx_fal" Extension for TYPO3 CMS.
+ *
+ * For the full copyright and license information, please read the
+ * LICENSE file that was distributed with this source code.
  */
 
 namespace Fairway\NetXFal\Driver;
@@ -14,16 +17,13 @@ use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Resource\Capabilities;
 use TYPO3\CMS\Core\Resource\Driver\AbstractHierarchicalFilesystemDriver;
 use TYPO3\CMS\Core\Resource\Exception;
-use TYPO3\CMS\Core\Resource\FileInterface;
-use TYPO3\CMS\Core\Resource\ProcessedFile;
 use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class Driver extends AbstractHierarchicalFilesystemDriver
 {
-
-    const EXTENSION_KEY = 'netx_fal';
-    const DRIVER_TYPE = 'FairwayNetXDriver';
+    public const EXTENSION_KEY = 'netx_fal';
+    public const DRIVER_TYPE = 'FairwayNetXDriver';
 
     public static NetXClient $client;
     protected Logger $log;
@@ -119,6 +119,7 @@ class Driver extends AbstractHierarchicalFilesystemDriver
         } catch (\Throwable $e) {
             return null;
         }
+        return null;
     }
 
     /**
@@ -168,7 +169,17 @@ class Driver extends AbstractHierarchicalFilesystemDriver
     public function folderExists(string $folderIdentifier): bool
     {
         $folderIdentifier = rtrim($folderIdentifier, '/\\') . '/';
-        $ret = (($folderIdentifier === '/') or ($this->getFolderInfoByIdentifier($folderIdentifier) !== null));
+        if ($folderIdentifier === '/') {
+            $this->log->debug("$this->instance: folderExists($folderIdentifier): true");
+            return true;
+        }
+
+        try {
+            $this->getFolderInfoByIdentifier($folderIdentifier);
+            $ret = true;
+        } catch (\Throwable $exception) {
+            $ret = false;
+        }
         $this->log->debug("$this->instance: folderExists($folderIdentifier): " . ($ret ? 'true' : 'false'));
         return $ret;
     }
@@ -428,7 +439,7 @@ class Driver extends AbstractHierarchicalFilesystemDriver
         $folderIdentifier = rtrim($folderIdentifier, '/\\') . '/';
         $id = rtrim($identifier, '/\\') . '/';
         $ret = ($identifier and (strpos($id, $folderIdentifier) === 0));
-        $this->log->debug("$this->instance: isWithin($folderIdentifier, $identifier): " . $ret ? 'true' : 'false');
+        $this->log->debug("$this->instance: isWithin($folderIdentifier, $identifier): " . ($ret ? 'true' : 'false'));
         return $ret;
     }
 
@@ -516,7 +527,7 @@ class Driver extends AbstractHierarchicalFilesystemDriver
             }
         }
         if (($start > 0) or ($numberOfItems > 0)) {
-            $ret = array_slice($ret, $start >= 0 ? $start : 0, $numberOfItems <= 0 ? null : $numberOfItems);
+            $ret = array_slice($ret, $start, $numberOfItems > 0 ? $numberOfItems : null);
         }
         //$this->log->debug("$this->instance: getFilesInFolder($folderIdentifier, $start, $numberOfItems, $recursive, " . json_encode($filenameFilterCallbacks) . ", $sort, $sortRev): " . json_encode($ret));
         return $ret;
@@ -558,7 +569,7 @@ class Driver extends AbstractHierarchicalFilesystemDriver
             }
         } else {
             $data = self::$client->getFolderInfo($folderIdentifier, 'folder');
-            usort($data, function ($a, $b) use ($sortRev, $sort) {
+            usort($data, function ($a, $b) use ($sortRev) {
                 $a = $a['name'];
                 $b = $b['name'];
                 return $sortRev ? strnatcmp($b, $a) : strnatcmp($a, $b);
@@ -569,7 +580,7 @@ class Driver extends AbstractHierarchicalFilesystemDriver
             }
         }
         if (($start > 0) or ($numberOfItems > 0)) {
-            $ret = array_slice($ret, $start >= 0 ? $start : 0, $numberOfItems <= 0 ? null : $numberOfItems);
+            $ret = array_slice($ret, $start, $numberOfItems > 0 ? $numberOfItems : null);
         }
         //$this->log->debug("$this->instance: getFoldersInFolder($folderIdentifier, $start, $numberOfItems, $recursive, " . json_encode($folderNameFilterCallbacks) . "$sort, $sortRev): " . json_encode($ret));
         return $ret;
@@ -623,6 +634,14 @@ class Driver extends AbstractHierarchicalFilesystemDriver
      */
     public function hasCapability(int $capability): bool
     {
+        if (!in_array($capability, [
+            Capabilities::CAPABILITY_BROWSABLE,
+            Capabilities::CAPABILITY_PUBLIC,
+            Capabilities::CAPABILITY_WRITABLE,
+            Capabilities::CAPABILITY_HIERARCHICAL_IDENTIFIERS,
+        ], true)) {
+            return false;
+        }
         return $this->capabilities->hasCapability($capability);
     }
 

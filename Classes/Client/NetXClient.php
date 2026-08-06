@@ -241,7 +241,7 @@ class NetXClient
      *  returns an array of the value selected for extraction or the folder info itself if nothing is specified
      * @param $identifier
      * @param $extract     string 'filename', 'foldername', 'file', 'folder' or ''
-     * @return array|mixed
+     * @return array
      */
     public function getFolderInfo(string $identifier, string $extract = ''): array
     {
@@ -342,22 +342,6 @@ class NetXClient
     {
         $fileArray = explode('/', $fileIdentifier);
         return (int)$fileArray[count($fileArray) - 1];
-    }
-
-    private function getInfoFieldValue(string $name, array $arr): string
-    {
-        if (!isset($arr['informationFieldValues']) || !$arr['informationFieldValues']) {
-            return '';
-        }
-        $val = $arr['informationFieldValues'][$name];
-        if (!$val) {
-            return '';
-        }
-        if (is_array($val)) {
-            $v = $this->extractName($val);
-            return $v === null ? '' : $v;
-        }
-        return $val;
     }
 
     public function getUrl(string $identifier, string $type = 'publicUrl')

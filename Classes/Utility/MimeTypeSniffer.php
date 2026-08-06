@@ -68,7 +68,7 @@ class MimeTypeSniffer
         // 3) Optional: Images präziser (liefert ebenfalls MIME)
         if (!$mime || str_starts_with($mime, 'text/')) {
             if ($img = @getimagesizefromstring($chunk)) {
-                $mime = $img['mime'] ?? $mime;
+                $mime = $img['mime'];
             }
         }
 

@@ -16,7 +16,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 // Driver
 $driverClass = (new Typo3Version())->getMajorVersion() < 13
-    ? \Fairway\NetXFal\Driver\DriverV12::class
+    ? implode('\\', ['Fairway', 'NetXFal', 'Driver', 'DriverV12'])
     : \Fairway\NetXFal\Driver\Driver::class;
 
 $driverRegistry = GeneralUtility::makeInstance(DriverRegistry::class);

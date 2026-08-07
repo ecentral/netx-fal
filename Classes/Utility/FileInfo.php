@@ -1,8 +1,16 @@
 <?php
 
+declare(strict_types=1);
+
+/*
+ * This file is part of the "netx_fal" Extension for TYPO3 CMS.
+ *
+ * For the full copyright and license information, please read the
+ * LICENSE file that was distributed with this source code.
+ */
+
 namespace Fairway\NetXFal\Utility;
 
-use Fairway\NetXFal\Utility\MimeTypeSniffer;
 use Fairway\NetXFalApi\Models\Asset;
 use TYPO3\CMS\Core\Utility\PathUtility;
 
@@ -12,7 +20,7 @@ class FileInfo
     private string $identifierHash;
     private string $folderHash;
     private string $name;
-    private string $storage;
+    private int $storage;
     private int $fileSize;
     private int $width;
     private int $height;
@@ -24,7 +32,7 @@ class FileInfo
 
     private string $previewUrl;
     private string $thumbUrl;
-    private bool|string $publicUrl;
+    private string $publicUrl;
     private string $extension;
 
     public function __construct(
@@ -33,9 +41,8 @@ class FileInfo
         string $apiKey,
         int $storage,
         array $configuredInformation = null
-    )
-    {
-        $this->identifier = $asset->getId();
+    ) {
+        $this->identifier = (string)$asset->getId();
         $this->identifierHash = sha1($this->identifier);
         $this->folderHash = sha1(PathUtility::dirname($this->identifier));
 
@@ -44,14 +51,14 @@ class FileInfo
         $this->mimetype = $mimeType;
 
         $this->storage = $storage;
-        $this->fileSize = $asset->getSize();
+        $this->fileSize = $asset->getSize() ?? 0;
         $this->mtime = intdiv($asset->getModificationDate(), 1000);
         $this->ctime = intdiv($asset->getCreationDate(), 1000);
 
         /*$format = (($asset->getCurrentVersion()->getFileCategory() == 'IMAGE') ? $imageFormat :
             (($asset->getCurrentVersion()->getFileCategory() == 'VIDEO') ? $videoFormat : $othersFormat));*/
 
-        $this->initImagesSize($asset);
+        $this->initImagesSize($asset, $host, $apiKey);
         $this->initPublicUrl($asset, $host);
         $this->initNameAndExtension($asset);
         $this->initDecriptions($asset, $configuredInformation);
@@ -86,52 +93,34 @@ class FileInfo
 
     public function initDecriptions(Asset $asset, ?array $configuredInformation)
     {
-        if($configuredInformation == null) {
+        if ($configuredInformation == null) {
             return;
-        }
-        foreach($asset->getInformationFieldValueSets() as $key => $valueSet) {
-            $informationFieldValueObject = $valueSet->getInformationFieldValues();
-            foreach($informationFieldValueObject as $informationFieldValue) {
-                if(isset($configuredInformation[$informationFieldValue->getField()])){
-                    $informationFieldValue->getField();
-                    $informationFieldValue->getValue();
-                }
-
-            }
         }
     }
 
-    public function initImagesSize(Asset $asset)
+    public function initImagesSize(Asset $asset, string $host = '', string $apiKey = '')
     {
-        $width = $asset->getWidth();
-        $height = $asset->getHeight();
+        $width = (int)($asset->getWidth() ?? 0);
+        $height = (int)($asset->getHeight() ?? 0);
 
-        if ($width && $height) {
-            $max = $this->getMaxSize($this->mimetype);
-            if (($max > 0) and (($width > $max) or ($height > $max))) {
-                if ($width > $height) {
-                    $this->height = intval($height * $max / $width);
-                    $this->width = $max;
-                } else {
-                    $this->width = intval($width * $max / $height);
-                    $this->height = $max;
-                }
-            }
-        } else {
-            $this->height = 0;
-            $this->width = 0;
+        if (($width === 0 || $height === 0) && str_starts_with($this->mimetype, 'image/')) {
+            [$width, $height] = $this->detectOriginalImageSize($asset, $host, $apiKey) ?? [$width, $height];
         }
+
+        $this->width = $width;
+        $this->height = $height;
     }
 
     private function initPublicUrl(Asset $asset, string $host)
     {
-        $this->previewUrl = $asset->getPreviewUrl($host);
-        $this->thumbUrl = $asset->getThumbnailUrl($host);
-        $this->publicUrl = $asset->getOriginalUrl($host);
+        $this->previewUrl = $asset->getPreviewUrl($host) ?? '';
+        $this->thumbUrl = $asset->getThumbnailUrl($host) ?? '';
+        $this->publicUrl = $asset->getOriginalUrl($host) ?? '';
     }
 
-    public function initNameAndExtension(Asset $asset){
-        $this->name = $asset->getName();
+    public function initNameAndExtension(Asset $asset)
+    {
+        $this->name = $asset->getName() ?? '';
         $this->extension = $asset->getExtension();
         if (substr($this->name, -strlen($this->extension)) !== $this->extension) {
             if (substr($this->name, -1) === '.') {
@@ -163,7 +152,7 @@ class FileInfo
         return $this->name;
     }
 
-    public function getStorage(): string
+    public function getStorage(): int
     {
         return $this->storage;
     }
@@ -232,11 +221,66 @@ class FileInfo
     {
         $mimeTypePattern = preg_split('/\//', $mimeType);
         $format = $mimeTypePattern[0] ?? 'application';
-        return match($format)
-        {
+        return match($format) {
             'image' => 3000,
             'text', 'video' => 320,
             'x-conference', 'model', 'message', 'font', 'audio', 'application' => 0,
+            default => 0,
         };
+    }
+
+    private function detectOriginalImageSize(Asset $asset, string $host, string $apiKey): ?array
+    {
+        $url = $asset->getOriginalUrl($host);
+        if ($url === null || $url === '') {
+            return null;
+        }
+
+        $chunk = $this->fetchImageHeaderChunk($url, $apiKey);
+        if ($chunk === null) {
+            return null;
+        }
+
+        return $this->detectImageSizeFromString($chunk);
+    }
+
+    private function fetchImageHeaderChunk(string $url, string $apiKey, int $byteCount = 65536, int $timeout = 10): ?string
+    {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_CONNECTTIMEOUT => $timeout,
+            CURLOPT_HTTPHEADER => [
+                'Range: bytes=0-' . max(0, $byteCount - 1),
+                'Accept-Encoding: identity',
+                'Authorization: apiToken ' . $apiKey,
+            ],
+            CURLOPT_NOBODY => false,
+        ]);
+
+        $chunk = curl_exec($ch);
+        $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($chunk === false || ($code !== 0 && ($code < 200 || $code >= 400))) {
+            return null;
+        }
+
+        return $chunk;
+    }
+
+    private function detectImageSizeFromString(string $content): ?array
+    {
+        $imageSize = @getimagesizefromstring($content);
+        if ($imageSize === false) {
+            return null;
+        }
+
+        return [
+            (int)$imageSize[0],
+            (int)$imageSize[1],
+        ];
     }
 }

@@ -1,76 +1,55 @@
-cache:
-  key: main-composer
-  paths:
-    - .cache
-
-services:
-  - name: docker:20.10-dind
-    alias: docker
-
-image: typo3/core-testing-docker:latest
-
 stages:
-  - composer
-  - unit
-  - functional
-  - acceptance
+  - test
 
-composer:
-  stage: composer
-  script:
-    - Build/Scripts/runTests.sh -s composerValidate -p 7.4
-    - Build/Scripts/runTests.sh -s composerUpdate -p 7.4
+.private_packages: &private_packages
+  - composer config bearer.packages.ecentral.dev "${PACKAGES_TOKEN}"
+  - composer config repositories.packistry composer https://packages.ecentral.dev/r/fairway
 
-unit php 7.4:
-  stage: unit
+validate-composer:
+  stage: test
+  image: registry.gitlab.com/codemonkey1988/docker-composer-image:2-php8.2
   script:
-    - Build/Scripts/runTests.sh -s composerUpdate -p 7.4
-    - Build/Scripts/runTests.sh -s unit -p 7.4
+    - composer validate --no-check-publish --no-check-all --no-interaction
 
-unit php 8.0:
-  stage: unit
+lint-php:
+  stage: test
+  image: registry.gitlab.com/codemonkey1988/docker-composer-image:2-php$PHP_VERSION
   script:
-    - Build/Scripts/runTests.sh -s composerUpdate -p 8.0
-    - Build/Scripts/runTests.sh -s unit -p 8.0
+    - find . -name \*.php ! -path "./vendor/*" -exec php -d display_errors=stderr -l {} > /dev/null \;
+  parallel:
+    matrix:
+      - PHP_VERSION: [ '8.2', '8.3', '8.4' ]
 
-unit php 8.1:
-  stage: unit
+php-cs-fixer:
+  stage: test
+  image: registry.gitlab.com/codemonkey1988/docker-composer-image:2-php8.2
+  before_script:
+    - *private_packages
+    - COMPOSER_CACHE_DIR=.composer/cache composer install --no-interaction
   script:
-    - Build/Scripts/runTests.sh -s composerUpdate -p 8.1
-    - Build/Scripts/runTests.sh -s unit -p 8.1
+    - composer phpcsfixer
+  cache:
+    key: composer-cache
+    paths:
+      - .composer/cache
 
-functional php 7.4:
-  stage: functional
+phpstan:
+  stage: test
+  image: registry.gitlab.com/codemonkey1988/docker-composer-image:2-php$PHP_VERSION
+  before_script:
+    - *private_packages
+    - composer require --no-interaction --no-ansi --no-progress --no-install typo3/cms-core:^13.4
+    - composer require --no-interaction --no-ansi --no-progress --no-install typo3/cms-extbase:^13.4
+    - composer require --no-interaction --no-ansi --no-progress --no-install typo3/cms-fluid:^13.4
+    - composer require --no-interaction --no-ansi --no-progress --no-install typo3/cms-filemetadata:^13.4
+    - composer require --no-interaction --no-ansi --no-progress --no-install typo3/cms-filelist:^13.4
+    - COMPOSER_CACHE_DIR=.composer/cache composer install --no-interaction
   script:
-    - Build/Scripts/runTests.sh -s composerUpdate -p 7.4
-    - Build/Scripts/runTests.sh -s functional -p 7.4
-
-functional php 8.0:
-  stage: functional
-  script:
-    - Build/Scripts/runTests.sh -s composerUpdate -p 8.0
-    - Build/Scripts/runTests.sh -s functional -p 8.0
-
-functional php 8.1:
-  stage: functional
-  script:
-    - Build/Scripts/runTests.sh -s composerUpdate -p 8.1
-    - Build/Scripts/runTests.sh -s functional -p 8.1
-
-acceptance php 7.4:
-  stage: acceptance
-  script:
-    - Build/Scripts/runTests.sh -s composerUpdate -p 7.4
-    - Build/Scripts/runTests.sh -s acceptance -p 7.4
-
-acceptance php 8.0:
-  stage: acceptance
-  script:
-    - Build/Scripts/runTests.sh -s composerUpdate -p 8.0
-    - Build/Scripts/runTests.sh -s acceptance -p 8.0
-
-acceptance php 8.1:
-  stage: acceptance
-  script:
-    - Build/Scripts/runTests.sh -s composerUpdate -p 8.1
-    - Build/Scripts/runTests.sh -s acceptance -p 8.1
+    - composer phpstan
+  parallel:
+    matrix:
+      - PHP_VERSION: [ '8.2' ]
+  cache:
+    key: composer-cache
+    paths:
+      - .composer/cache

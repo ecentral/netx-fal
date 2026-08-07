@@ -9,12 +9,6 @@ declare(strict_types=1);
  * LICENSE file that was distributed with this source code.
  */
 
-use Fairway\NetXFal\Utility\Cache;
-
-return [
-    'netx_cache' => [
-        'path' => '/netx/cache',
-        'access' => 'public',
-        'target' => Cache::class . '::clearCache',
-    ],
-];
+if (!class_exists(\Fairway\NetXFal\Driver\DriverV12::class, false)) {
+    class_alias(\Fairway\NetXFal\Driver\Driver::class, \Fairway\NetXFal\Driver\DriverV12::class);
+}

@@ -1,12 +1,26 @@
 <?php
+
+declare(strict_types=1);
+
+/*
+ * This file is part of the "netx_fal" Extension for TYPO3 CMS.
+ *
+ * For the full copyright and license information, please read the
+ * LICENSE file that was distributed with this source code.
+ */
+
 defined('TYPO3') || die('Access denied.');
 use TYPO3\CMS\Core\Information\Typo3Version;
 use TYPO3\CMS\Core\Resource\Driver\DriverRegistry;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
+$GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects'][\TYPO3\CMS\Core\Resource\ResourceStorage::class] = [
+    'className' => \Fairway\NetXFal\Xclass\Core\Resource\ResourceStorage::class,
+];
+
 // Driver
 $driverClass = (new Typo3Version())->getMajorVersion() < 13
-    ? \Fairway\NetXFal\Driver\DriverV12::class
+    ? implode('\\', ['Fairway', 'NetXFal', 'Driver', 'DriverV12'])
     : \Fairway\NetXFal\Driver\Driver::class;
 
 $driverRegistry = GeneralUtility::makeInstance(DriverRegistry::class);
@@ -27,7 +41,7 @@ $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations'][$driverClas
 ];
 
 // Extractor
-$extractorRegistry = new \TYPO3\CMS\Core\Resource\Index\ExtractorRegistry();
+$extractorRegistry = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Resource\Index\ExtractorRegistry::class);
 $extractorRegistry->registerExtractionService(\Fairway\NetXFal\Index\Extractor::class);
 
 // Processor

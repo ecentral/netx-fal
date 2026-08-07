@@ -1,0 +1,10 @@
+parameters:
+    bootstrapFiles:
+        - phpstan-bootstrap.php
+    level: 6
+    paths:
+        - Classes
+        - Configuration
+    excludePaths:
+        - Classes/Driver/DriverV12.php
+    reportUnmatchedIgnoredErrors: false

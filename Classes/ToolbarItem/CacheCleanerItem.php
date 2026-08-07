@@ -1,18 +1,12 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 /*
- * This file is part of the TYPO3 CMS project.
- *
- * It is free software; you can redistribute it and/or modify it under
- * the terms of the GNU General Public License, either version 2
- * of the License, or any later version.
+ * This file is part of the "netx_fal" Extension for TYPO3 CMS.
  *
  * For the full copyright and license information, please read the
- * LICENSE.txt file that was distributed with this source code.
- *
- * The TYPO3 project - inspiring people to share!
+ * LICENSE file that was distributed with this source code.
  */
 
 namespace Fairway\NetXFal\ToolbarItem;
@@ -42,6 +36,7 @@ class CacheCleanerItem implements ToolbarItemInterface, RequestAwareToolbarItemI
     protected array $cacheActions = [];
     protected array $optionValues = [];
     private ServerRequestInterface $request;
+    private ?ViewFactoryInterface $viewFactory = null;
 
     public function __construct(
         UriBuilder $uriBuilder,
@@ -103,6 +98,9 @@ class CacheCleanerItem implements ToolbarItemInterface, RequestAwareToolbarItemI
             $view->setLayoutRootPaths([GeneralUtility::getFileAbsFileName('EXT:netx_fal/Resources/Private/Layouts/')]);
             $view->setTemplate('ToolbarItems/ClearCumulusCacheToolbarItemSingle.html');
         } else {
+            if ($this->viewFactory === null) {
+                $this->viewFactory = GeneralUtility::makeInstance(ViewFactoryInterface::class);
+            }
             $viewFactoryData = new ViewFactoryData(
                 templateRootPaths: ['EXT:netx_fal/Resources/Private/Templates/'],
                 partialRootPaths: ['EXT:netx_fal/Resources/Private/Partials/'],

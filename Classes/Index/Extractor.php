@@ -1,9 +1,12 @@
 <?php
-/**
- * Created by PhpStorm.
- * User: CMA
- * Date: 05/11/2018
- * Time: 12:12
+
+declare(strict_types=1);
+
+/*
+ * This file is part of the "netx_fal" Extension for TYPO3 CMS.
+ *
+ * For the full copyright and license information, please read the
+ * LICENSE file that was distributed with this source code.
  */
 
 namespace Fairway\NetXFal\Index;
@@ -17,7 +20,6 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class Extractor implements ExtractorInterface
 {
-
     protected Logger $log;
 
     public function __construct()
@@ -89,8 +91,7 @@ class Extractor implements ExtractorInterface
     public function extractMetaData(File $file, array $previousExtractedData = []): array
     {
         $this->log->debug('extractMetaData(' . $file->getIdentifier() . ', ' . json_encode($previousExtractedData) . ')');
-        $client = DriverUtility::getClient();
 
-        return $client->getFileInfo($file->getIdentifier())['info'];
+        return $file->getStorage()->getFileInfoByIdentifier($file->getIdentifier());
     }
 }

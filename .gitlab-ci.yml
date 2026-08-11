@@ -1,9 +1,16 @@
 stages:
   - test
+  - prepare-demo-deploy
+  - deploy-demo
 
 .private_packages: &private_packages
   - composer config bearer.packages.ecentral.dev "${PACKAGES_TOKEN}"
   - composer config repositories.packistry composer https://packages.ecentral.dev/r/fairway
+
+.deploy-demo:
+  stage: deploy-demo
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
 
 validate-composer:
   stage: test
@@ -53,3 +60,64 @@ phpstan:
     key: composer-cache
     paths:
       - .composer/cache
+
+generate-demo-deploy:
+  extends: .deploy-demo
+  stage: prepare-demo-deploy
+  image: alpine:3.20
+  script:
+    - |
+      set -eu
+
+      : "${DEMO_SUBDOMAIN:?DEMO_SUBDOMAIN is required}"
+      : "${DEMO_COMPOSER_PACKAGES:?DEMO_COMPOSER_PACKAGES is required}"
+      : "${DEMO_VERSIONS:?DEMO_VERSIONS is required}"
+
+      case "${DEMO_SUBDOMAIN}${DEMO_COMPOSER_PACKAGES}${DEMO_VERSIONS}" in
+        *\"*)
+          echo "DEMO_* variables must not contain double quotes."
+          exit 1
+          ;;
+      esac
+
+      cat > generated-demo-deploy.yml <<'YAML'
+      stages:
+        - deploy-demo
+      YAML
+
+      echo "${DEMO_VERSIONS}" | tr ',' '\n' | while read -r version; do
+        version="$(echo "${version}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        [ -n "${version}" ] || continue
+
+        {
+          printf '\ndeploy-demo-%s:\n' "${version}"
+          printf '  stage: deploy-demo\n'
+          printf '  trigger:\n'
+          printf '    project: "fairway/demo-server/%s-typo-3-ecentral-de"\n' "${version}"
+          printf '    branch: main\n'
+          printf '    strategy: mirror\n'
+          printf '    inputs:\n'
+          printf '      subdomain: "%s"\n' "${DEMO_SUBDOMAIN}"
+          printf '      composer-packages:\n'
+        } >> generated-demo-deploy.yml
+
+        echo "${DEMO_COMPOSER_PACKAGES}" | tr ',' '\n' | while read -r package; do
+          package="$(echo "${package}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          [ -n "${package}" ] || continue
+          printf '        - "%s"\n' "${package}" >> generated-demo-deploy.yml
+        done
+      done
+  artifacts:
+    paths:
+      - generated-demo-deploy.yml
+
+deploy-demo:
+  extends: .deploy-demo
+  needs:
+    - job: generate-demo-deploy
+      artifacts: true
+  trigger:
+    include:
+      - artifact: generated-demo-deploy.yml
+        job: generate-demo-deploy
+    strategy: mirror

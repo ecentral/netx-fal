@@ -14,7 +14,7 @@ stages:
 
 validate-composer:
   stage: test
-  image: registry.gitlab.com/codemonkey1988/docker-composer-image:2-php8.2
+  image: registry.gitlab.com/codemonkey1988/docker-composer-image:2-php8.4
   script:
     - composer validate --no-check-publish --no-check-all --no-interaction
 
@@ -29,12 +29,31 @@ lint-php:
 
 php-cs-fixer:
   stage: test
-  image: registry.gitlab.com/codemonkey1988/docker-composer-image:2-php8.2
+  image: registry.gitlab.com/codemonkey1988/docker-composer-image:2-php$PHP_VERSION
   before_script:
     - *private_packages
     - COMPOSER_CACHE_DIR=.composer/cache composer install --no-interaction
   script:
-    - composer phpcsfixer
+    - composer cs:check
+  parallel:
+    matrix:
+      - PHP_VERSION: [ '8.4' ]
+  cache:
+    key: composer-cache
+    paths:
+      - .composer/cache
+
+php:rector:
+  stage: test
+  image: registry.gitlab.com/codemonkey1988/docker-composer-image:2-php$PHP_VERSION
+  before_script:
+    - *private_packages
+    - COMPOSER_CACHE_DIR=.composer/cache composer install --no-interaction
+  script:
+    - composer rector:check
+  parallel:
+    matrix:
+      - PHP_VERSION: [ '8.4' ]
   cache:
     key: composer-cache
     paths:
@@ -45,17 +64,13 @@ phpstan:
   image: registry.gitlab.com/codemonkey1988/docker-composer-image:2-php$PHP_VERSION
   before_script:
     - *private_packages
-    - composer require --no-interaction --no-ansi --no-progress --no-install typo3/cms-core:^13.4
-    - composer require --no-interaction --no-ansi --no-progress --no-install typo3/cms-extbase:^13.4
-    - composer require --no-interaction --no-ansi --no-progress --no-install typo3/cms-fluid:^13.4
-    - composer require --no-interaction --no-ansi --no-progress --no-install typo3/cms-filemetadata:^13.4
-    - composer require --no-interaction --no-ansi --no-progress --no-install typo3/cms-filelist:^13.4
+    - composer require --update-with-all-dependencies --no-interaction --no-ansi --no-progress --no-install typo3/minimal:^13.4
     - COMPOSER_CACHE_DIR=.composer/cache composer install --no-interaction
   script:
-    - composer phpstan
+    - composer analyze:php
   parallel:
     matrix:
-      - PHP_VERSION: [ '8.2' ]
+      - PHP_VERSION: [ '8.2', '8.3', '8.4' ]
   cache:
     key: composer-cache
     paths:

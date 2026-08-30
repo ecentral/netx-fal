@@ -11,9 +11,13 @@ declare(strict_types=1);
 
 namespace Fairway\NetXFal\Processor;
 
+use Exception;
+use Fairway\NetXFal\Utility\DriverUtility;
 use Psr\Http\Message\ServerRequestInterface;
+use RuntimeException;
 use TYPO3\CMS\Core\Context\Context;
 use TYPO3\CMS\Core\Database\Connection;
+use TYPO3\CMS\Core\Database\ConnectionPool;
 use TYPO3\CMS\Core\Http\ApplicationType;
 use TYPO3\CMS\Core\Imaging\Exception\ZeroImageDimensionException;
 use TYPO3\CMS\Core\Imaging\ImageDimension;
@@ -30,7 +34,7 @@ class NetXImageProcessor implements ProcessorInterface
 
     public function canProcessTask(TaskInterface $task): bool
     {
-        $this->log = GeneralUtility::makeInstance(LogManager::class)->getLogger(__CLASS__);
+        $this->log = GeneralUtility::makeInstance(LogManager::class)->getLogger(self::class);
         $context = GeneralUtility::makeInstance(Context::class);
         return ($GLOBALS['TYPO3_REQUEST'] ?? null) instanceof ServerRequestInterface
             && ApplicationType::fromRequest($GLOBALS['TYPO3_REQUEST'])->isBackend()
@@ -48,11 +52,11 @@ class NetXImageProcessor implements ProcessorInterface
         ]);
 
         // Load originial file from system
-        $driverClient     = \Fairway\NetXFal\Utility\DriverUtility::getClient();
+        $driverClient     = DriverUtility::getClient();
         $sourceIdentifier = $task->getSourceFile()->getIdentifier();
         $originalContent  = $driverClient->getFileContents($sourceIdentifier);
         if (!$originalContent) {
-            throw new \RuntimeException('Empty content from external client for ' . $sourceIdentifier);
+            throw new RuntimeException('Empty content from external client for ' . $sourceIdentifier);
         }
 
         $imgInfo    = @getimagesizefromstring($originalContent);
@@ -62,7 +66,7 @@ class NetXImageProcessor implements ProcessorInterface
 
         $src = @imagecreatefromstring($originalContent);
         if (!$src || !$origWidth || !$origHeight) {
-            throw new \RuntimeException('GD could not create image from source');
+            throw new RuntimeException('GD could not create image from source');
         }
 
         // 2) Crop over typo3 api
@@ -114,7 +118,7 @@ class NetXImageProcessor implements ProcessorInterface
                 throw new ZeroImageDimensionException('Computed target size is zero', 1710000000);
             }
 
-        } catch (ZeroImageDimensionException $e) {
+        } catch (ZeroImageDimensionException) {
             $cfgW  = (int)($task->getConfiguration()['width']    ?? 0);
             $cfgH  = (int)($task->getConfiguration()['height']   ?? 0);
             $maxW  = (int)($task->getConfiguration()['maxWidth'] ?? 0);
@@ -172,7 +176,7 @@ class NetXImageProcessor implements ProcessorInterface
         )) {
             imagedestroy($src);
             imagedestroy($dst);
-            throw new \RuntimeException('imagecopyresampled failed');
+            throw new RuntimeException('imagecopyresampled failed');
         }
 
         // Write & place in the expected destination path
@@ -226,7 +230,7 @@ class NetXImageProcessor implements ProcessorInterface
 
 
 
-    protected function updateFileMetadata($fileUid, $width, $height)
+    protected function updateFileMetadata(int $fileUid, int $width, int $height): void
     {
         // get original uid
         $originalFileUid = $this->getOriginalFileUid($fileUid);
@@ -235,7 +239,7 @@ class NetXImageProcessor implements ProcessorInterface
         if ($originalFileUid !== null) {
             try {
                 // database connection
-                $queryBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Database\ConnectionPool::class)
+                $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
                     ->getQueryBuilderForTable('sys_file_metadata');
 
                 // execute query to update the metadata
@@ -249,7 +253,7 @@ class NetXImageProcessor implements ProcessorInterface
                     ->executeStatement();
 
                 $this->log->debug("Update succesfully: width: $width and height: $height");
-            } catch (\Exception $e) {
+            } catch (Exception $e) {
                 $this->log->error('Update failed: Error: ' . $e->getMessage());
             }
         } else {
@@ -257,10 +261,10 @@ class NetXImageProcessor implements ProcessorInterface
         }
     }
 
-    protected function getOriginalFileUid($processedFileUid)
+    protected function getOriginalFileUid(int $processedFileUid): ?int
     {
         // database connection
-        $queryBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Database\ConnectionPool::class)
+        $queryBuilder = GeneralUtility::makeInstance(ConnectionPool::class)
             ->getQueryBuilderForTable('sys_file_processedfile');
 
         // execute query to select original uid
@@ -275,7 +279,7 @@ class NetXImageProcessor implements ProcessorInterface
         $row = $queryBuilder->executeQuery()->fetchAssociative();
 
         // if exist, return the uid
-        return $row['original'] ?? null;
+        return isset($row['original']) ? (int)$row['original'] : null;
     }
 
 }

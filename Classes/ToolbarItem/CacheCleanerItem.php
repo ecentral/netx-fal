@@ -33,7 +33,9 @@ use TYPO3\CMS\Fluid\View\StandaloneView;
 #[AllowDynamicProperties]
 class CacheCleanerItem implements ToolbarItemInterface, RequestAwareToolbarItemInterface
 {
+    /** @var list<array{id: string, title: string, description: string, href: string, iconIdentifier: string}> */
     protected array $cacheActions = [];
+    /** @var list<string> */
     protected array $optionValues = [];
     private ServerRequestInterface $request;
     private ?ViewFactoryInterface $viewFactory = null;
@@ -92,15 +94,13 @@ class CacheCleanerItem implements ToolbarItemInterface, RequestAwareToolbarItemI
     {
         if ((new Typo3Version())->getMajorVersion() < 13) {
             /** @var StandaloneView $view */
-            $view = GeneralUtility::makeInstance(\TYPO3\CMS\Fluid\View\StandaloneView::class);
+            $view = GeneralUtility::makeInstance(StandaloneView::class);
             $view->setTemplateRootPaths([GeneralUtility::getFileAbsFileName('EXT:netx_fal/Resources/Private/Templates/')]);
             $view->setPartialRootPaths([GeneralUtility::getFileAbsFileName('EXT:netx_fal/Resources/Private/Partials/')]);
             $view->setLayoutRootPaths([GeneralUtility::getFileAbsFileName('EXT:netx_fal/Resources/Private/Layouts/')]);
             $view->setTemplate('ToolbarItems/ClearCumulusCacheToolbarItemSingle.html');
         } else {
-            if ($this->viewFactory === null) {
-                $this->viewFactory = GeneralUtility::makeInstance(ViewFactoryInterface::class);
-            }
+            $this->viewFactory ??= GeneralUtility::makeInstance(ViewFactoryInterface::class);
             $viewFactoryData = new ViewFactoryData(
                 templateRootPaths: ['EXT:netx_fal/Resources/Private/Templates/'],
                 partialRootPaths: ['EXT:netx_fal/Resources/Private/Partials/'],
@@ -130,6 +130,8 @@ class CacheCleanerItem implements ToolbarItemInterface, RequestAwareToolbarItemI
 
     /**
      * No additional attributes needed.
+     *
+     * @return array<string, string>
      */
     public function getAdditionalAttributes(): array
     {

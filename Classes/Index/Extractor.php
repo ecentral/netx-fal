@@ -24,12 +24,14 @@ class Extractor implements ExtractorInterface
 
     public function __construct()
     {
-        $this->log = GeneralUtility::makeInstance(LogManager::class)->getLogger(__CLASS__);
+        $this->log = GeneralUtility::makeInstance(LogManager::class)->getLogger(self::class);
     }
 
     /**
      * Returns an array of supported file types;
      * An empty array indicates all filetypes
+     *
+     * @return list<string>
      */
     public function getFileTypeRestrictions(): array
     {
@@ -45,6 +47,8 @@ class Extractor implements ExtractorInterface
      * Returns array of string with driver names of Drivers which are supported,
      * If the driver did not register a name, it's the classname.
      * empty array indicates no restrictions
+     *
+     * @return list<string>
      */
     public function getDriverRestrictions(): array
     {
@@ -87,6 +91,9 @@ class Extractor implements ExtractorInterface
      * The actual processing TASK
      *
      * Should return an array with database properties for sys_file_metadata to write
+     *
+     * @param array<string, mixed> $previousExtractedData
+     * @return array<string, mixed>
      */
     public function extractMetaData(File $file, array $previousExtractedData = []): array
     {

@@ -37,8 +37,8 @@ class DriverV12 extends AbstractHierarchicalFilesystemDriver
         parent::__construct($configuration);
 
         $this->configuration = $configuration;
-        $this->instance = rand();
-        $this->log = GeneralUtility::makeInstance(LogManager::class)->getLogger(__CLASS__);
+        $this->instance = random_int(0, mt_getrandmax());
+        $this->log = GeneralUtility::makeInstance(LogManager::class)->getLogger(self::class);
         $this->log->debug("$this->instance: __construct(" . json_encode($configuration) . ')');
         $this->capabilities = ResourceStorage::CAPABILITY_BROWSABLE | ResourceStorage::CAPABILITY_PUBLIC | ResourceStorage::CAPABILITY_HIERARCHICAL_IDENTIFIERS;
     }
@@ -165,7 +165,7 @@ class DriverV12 extends AbstractHierarchicalFilesystemDriver
      */
     public function fileExists($fileIdentifier)
     {
-        $ret = ((substr($fileIdentifier, -1, 1) != '/') and ($this->getFileInfoByIdentifier($fileIdentifier) !== null));
+        $ret = ((!str_ends_with($fileIdentifier, '/')) and ($this->getFileInfoByIdentifier($fileIdentifier) !== null));
         $this->log->debug("$this->instance: fileExists($fileIdentifier): " . ($ret ? 'true' : 'false'));
         return $ret;
     }
@@ -507,7 +507,7 @@ class DriverV12 extends AbstractHierarchicalFilesystemDriver
     {
         $folderIdentifier = rtrim($folderIdentifier, '/\\') . '/';
         $id = rtrim($identifier, '/\\') . '/';
-        $ret = ($identifier and (strpos($id, $folderIdentifier) === 0));
+        $ret = ($identifier and (str_starts_with($id, $folderIdentifier)));
         $this->log->debug("$this->instance: isWithin($folderIdentifier, $identifier): " . $ret ? 'true' : 'false');
         return $ret;
     }

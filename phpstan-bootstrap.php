@@ -9,6 +9,9 @@ declare(strict_types=1);
  * LICENSE file that was distributed with this source code.
  */
 
-if (!class_exists(\Fairway\NetXFal\Driver\DriverV12::class, false)) {
-    class_alias(\Fairway\NetXFal\Driver\Driver::class, \Fairway\NetXFal\Driver\DriverV12::class);
+use Fairway\NetXFal\Driver\Driver;
+use Fairway\NetXFal\Driver\DriverV12;
+
+if (!class_exists(DriverV12::class, false)) {
+    class_alias(Driver::class, DriverV12::class);
 }

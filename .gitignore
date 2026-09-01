@@ -2,6 +2,7 @@ node_modules
 package-lock.json
 .Build/
 .idea/
+var/
 Build/testing-docker/.env
 composer.lock
 Tests/Acceptance/Support/_generated/

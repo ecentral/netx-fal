@@ -42,12 +42,16 @@ class NetXClient
     protected Logger $log;
 
     private int $cacheLifetime;
+    /** @var list<string> */
     private array $roots = [];
 
+    /**
+     * @param array<string, mixed> $config
+     */
     public function __construct(array $config, int $storage)
     {
         try {
-            $this->log = GeneralUtility::makeInstance(LogManager::class)->getLogger(__CLASS__);
+            $this->log = GeneralUtility::makeInstance(LogManager::class)->getLogger(self::class);
             $this->log->debug('__construct(' . json_encode($config) . ')');
 
             $this->initConfiguration($config);
@@ -71,6 +75,9 @@ class NetXClient
         return $this->apiKey;
 
     }
+    /**
+     * @param array<string, mixed> $configuration
+     */
     public function initConfiguration(array $configuration): void
     {
         $this->host = $configuration['netxHost'] ?? '';
@@ -98,7 +105,7 @@ class NetXClient
 
         $this->roots = array_map(
             static fn (string $value): string => '/' . trim($value, '/') . '/',
-            array_filter(array_map('trim', explode(',', $roots)), static fn (string $value): bool => $value !== '')
+            array_filter(array_map(trim(...), explode(',', $roots)), static fn (string $value): bool => $value !== '')
         );
     }
 
@@ -166,6 +173,9 @@ class NetXClient
     }
 
 
+    /**
+     * @return array<string, mixed>
+     */
     private function queryBasicFolderInformation(string $identifier): array
     {
         $folderInfoReturnValue = ['info' => null, 'children' => [], 'assets' => []];
@@ -186,6 +196,9 @@ class NetXClient
         return $folderInfo;
     }
 
+    /**
+     * @return array{0: array<string, mixed>, 1: array<string, int|string|null>, 2: list<array{name: string|null, identifier: int|string|null}>}
+     */
     private function querySubfolder(string $identifier): array
     {
         $folder = $this->getClient()->folderService()->getFolderById((int)$this->extractId($identifier));
@@ -206,6 +219,9 @@ class NetXClient
         return [$folderInfo, $foldernames, $folders];
     }
 
+    /**
+     * @return array{0: array<string, mixed>, 1: array<string, int|string|null>, 2: list<array{name: string|null, identifier: int|string|null}>, 3: array<string, int|string|null>, 4: list<array<string, mixed>>}
+     */
     private function querySubfolderAndAssets(string $identifier): array
     {
         $folder = $this->getClient()->folderService()->getFolderById((int)$this->extractId($identifier));
@@ -241,7 +257,7 @@ class NetXClient
      *  returns an array of the value selected for extraction or the folder info itself if nothing is specified
      * @param $identifier
      * @param $extract     string 'filename', 'foldername', 'file', 'folder' or ''
-     * @return array
+     * @return array<string, mixed>
      */
     public function getFolderInfo(string $identifier, string $extract = ''): array
     {
@@ -298,6 +314,9 @@ class NetXClient
         return $this->cache->get($key . $extract);
     }
 
+    /**
+     * @return bool|array<string, mixed>
+     */
     public function getFileInfo(string $identifier): bool|array
     {
         $fileId = $this->getFileIdByFileIdentifier($identifier);
@@ -317,6 +336,9 @@ class NetXClient
         return $this->cache->get($key);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function toAsset(Asset $asset): array
     {
         /*$fileCategory = $asset->getCurrentVersion()->getFileCategory();
@@ -344,14 +366,14 @@ class NetXClient
         return (int)$fileArray[count($fileArray) - 1];
     }
 
-    public function getUrl(string $identifier, string $type = 'publicUrl')
+    public function getUrl(string $identifier, string $type = 'publicUrl'): string
     {
-        if (substr($identifier, 0, 5) === 'thumb') {
+        if (str_starts_with($identifier, 'thumb')) {
             $type = 'thumbnail';
             $identifier = substr($identifier, 5);
         }
         $fileInfo = $this->getFileInfo($identifier);
-        $url = $fileInfo[$type];
+        $url = (string)$fileInfo[$type];
         $this->log->debug("getUrl($identifier, $type): $url");
         return $url;
     }

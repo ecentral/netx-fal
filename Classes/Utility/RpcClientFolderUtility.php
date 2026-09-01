@@ -15,7 +15,10 @@ use Fairway\NetXFalApi\Models\Folder;
 
 class RpcClientFolderUtility
 {
-    public static function getFolderInfoByFolder(Folder $folder, $storageId, string $locale = ''): array
+    /**
+     * @return array{info: array{identifier: int|string|null, name: string|null, storage: int, mtime: int}, children: list<int|string>, assets: list<int|string>}
+     */
+    public static function getFolderInfoByFolder(Folder $folder, int $storageId, string $locale = ''): array
     {
         return [
             'info' => [

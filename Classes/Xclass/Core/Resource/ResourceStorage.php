@@ -19,6 +19,10 @@ use TYPO3\CMS\Core\Resource\ResourceStorage as CoreResourceStorage;
 
 class ResourceStorage extends CoreResourceStorage
 {
+    /**
+     * @param mixed $action
+     * @param FileInterface $file
+     */
     public function checkFileActionPermission($action, $file): bool
     {
         if ($file->getStorage()->getDriverType() !== Driver::DRIVER_TYPE) {
@@ -38,6 +42,9 @@ class ResourceStorage extends CoreResourceStorage
         return $this->checkNetXFolderActionPermission($action, $folder);
     }
 
+    /**
+     * @param mixed $action
+     */
     public function checkNetXFileActionPermission($action, FileInterface $file): bool
     {
         if ($this->checkUserNetXActionPermission($action, 'File') === false) {
@@ -83,6 +90,9 @@ class ResourceStorage extends CoreResourceStorage
         return true;
     }
 
+    /**
+     * @param mixed $action
+     */
     public function checkNetXFolderActionPermission($action, ?Folder $folder = null): bool
     {
         if ($this->checkUserNetXActionPermission($action, 'Folder') === false) {
@@ -117,6 +127,9 @@ class ResourceStorage extends CoreResourceStorage
         return true;
     }
 
+    /**
+     * @param mixed $action
+     */
     public function checkUserNetXActionPermission($action, string $type): bool
     {
         if (!$this->evaluatePermissions) {

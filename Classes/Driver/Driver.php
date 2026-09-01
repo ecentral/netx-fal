@@ -12,12 +12,15 @@ declare(strict_types=1);
 namespace Fairway\NetXFal\Driver;
 
 use Fairway\NetXFal\Client\NetXClient;
+use RuntimeException;
+use Throwable;
 use TYPO3\CMS\Core\Log\Logger;
 use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Resource\Capabilities;
 use TYPO3\CMS\Core\Resource\Driver\AbstractHierarchicalFilesystemDriver;
 use TYPO3\CMS\Core\Resource\Exception;
 use TYPO3\CMS\Core\Resource\MimeTypeDetector;
+use TYPO3\CMS\Core\Resource\ProcessedFile;
 use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -28,19 +31,23 @@ class Driver extends AbstractHierarchicalFilesystemDriver
 
     public static NetXClient $client;
     protected Logger $log;
-    protected $instance;
+    protected int $instance;
     protected Capabilities $capabilities;
+    /** @var array<string, mixed> */
     protected array $configuration;
-    protected ?int $storageUid;
+    protected ?int $storageUid = null;
     protected ?ResourceStorage $storage = null;
 
+    /**
+     * @param array<string, mixed> $configuration
+     */
     public function __construct(array $configuration = [])
     {
         parent::__construct($configuration);
 
         $this->configuration = $configuration;
-        $this->instance = rand();
-        $this->log = GeneralUtility::makeInstance(LogManager::class)->getLogger(__CLASS__);
+        $this->instance = random_int(0, mt_getrandmax());
+        $this->log = GeneralUtility::makeInstance(LogManager::class)->getLogger(self::class);
         $this->log->debug("$this->instance: __construct(" . json_encode($configuration) . ')');
         $this->capabilities = GeneralUtility::makeInstance(
             Capabilities::class,
@@ -114,10 +121,10 @@ class Driver extends AbstractHierarchicalFilesystemDriver
         }
         try {
             $file = $this->storage->getFile($identifier);
-            if ($file instanceof \TYPO3\CMS\Core\Resource\ProcessedFile) {
+            if ($file instanceof ProcessedFile) {
                 return $file->getPublicUrl();
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable) {
             return null;
         }
         return null;
@@ -165,7 +172,7 @@ class Driver extends AbstractHierarchicalFilesystemDriver
         }
 
         $fileInfo = self::$client->getFileInfo($fileIdentifier)['info'] ?? null;
-        $ret = ((substr($fileIdentifier, -1, 1) != '/') and is_array($fileInfo) and $fileInfo !== []);
+        $ret = ((!str_ends_with($fileIdentifier, '/')) and is_array($fileInfo) and $fileInfo !== []);
         $this->log->debug("$this->instance: fileExists($fileIdentifier): " . ($ret ? 'true' : 'false'));
         return $ret;
     }
@@ -296,7 +303,7 @@ class Driver extends AbstractHierarchicalFilesystemDriver
      * @param string $sourceFolderIdentifier
      * @param string $targetFolderIdentifier
      * @param string $newFolderName
-     * @return array All files which are affected, map of old => new file identifiers
+     * @return array<string, string> All files which are affected, map of old => new file identifiers
      * @throws Exception
      */
     public function moveFolderWithinStorage(string $sourceFolderIdentifier, string $targetFolderIdentifier, string $newFolderName): array
@@ -330,7 +337,7 @@ class Driver extends AbstractHierarchicalFilesystemDriver
      *
      * @throws Exception
      */
-    public function setFileContents(string $fileIdentifier, $contents): int
+    public function setFileContents(string $fileIdentifier, string $contents): int
     {
         //$this->log->debug("$this->instance: setFileContents($fileIdentifier, $contents)");
         throw new Exception('Storage is read-only.');
@@ -389,13 +396,13 @@ class Driver extends AbstractHierarchicalFilesystemDriver
 
         $remoteStream = fopen(self::$client->getUrl($fileIdentifier), 'r', false, $streamContext);
         if (!$remoteStream) {
-            throw new \RuntimeException('Could not open remote stream for ' . $fileIdentifier);
+            throw new RuntimeException('Could not open remote stream for ' . $fileIdentifier);
         }
 
         $localStream = fopen($tmpFile, 'w+b');
         if (!$localStream) {
             fclose($remoteStream);
-            throw new \RuntimeException('Could not open local temp file ' . $tmpFile);
+            throw new RuntimeException('Could not open local temp file ' . $tmpFile);
         }
 
         // Copy remote → local
@@ -420,11 +427,45 @@ class Driver extends AbstractHierarchicalFilesystemDriver
      * Directly output the contents of the file to the output
      * buffer. Should not take care of header files or flushing
      * buffer before. Will be taken care of by the Storage.
+     *
+     * NetX file URLs are protected API endpoints. The stream context must send
+     * the API token authorization header and keep HTTP errors readable so TYPO3
+     * can report failed downloads instead of writing invalid output.
      */
     public function dumpFileContents(string $identifier): void
     {
+        $streamContext = stream_context_create([
+            'http' => [
+                'method'  => 'GET',
+                'header'  => [
+                    self::$client->createAuthenticationHeader(),
+                    'Accept-Encoding: gzip, deflate',
+                ],
+                'max_redirects'    => 10,
+                'protocol_version' => 1.1,
+                'timeout'          => 10,
+                'ignore_errors'    => true,
+                'ssl' => [
+                    'verify_peer'      => true,
+                    'verify_peer_name' => true,
+                ],
+            ],
+        ]);
+
+        $contents = file_get_contents(self::$client->getUrl($identifier), false, $streamContext);
+        if ($contents === false) {
+            throw new RuntimeException('Could not fetch remote file for ' . $identifier);
+        }
+        $statusLine = $http_response_header[0] ?? '';
+        if (preg_match('/^HTTP\/\S+\s+([1-5][0-9]{2})\b/', $statusLine, $matches) === 1 && (int)$matches[1] >= 400) {
+            throw new RuntimeException(sprintf('Could not fetch remote file for %s: HTTP %s', $identifier, $matches[1]));
+        }
+
         $handle = fopen('php://output', 'w');
-        fwrite($handle, file_get_contents(self::$client->getUrl($identifier))); // ex thumbnail
+        if ($handle === false) {
+            throw new RuntimeException('Could not open output stream.');
+        }
+        fwrite($handle, $contents);
         fclose($handle);
     }
 
@@ -441,7 +482,7 @@ class Driver extends AbstractHierarchicalFilesystemDriver
     {
         $folderIdentifier = rtrim($folderIdentifier, '/\\') . '/';
         $id = rtrim($identifier, '/\\') . '/';
-        $ret = ($identifier and (strpos($id, $folderIdentifier) === 0));
+        $ret = ($identifier and (str_starts_with($id, $folderIdentifier)));
         $this->log->debug("$this->instance: isWithin($folderIdentifier, $identifier): " . ($ret ? 'true' : 'false'));
         return $ret;
     }
@@ -459,6 +500,10 @@ class Driver extends AbstractHierarchicalFilesystemDriver
         return $ret;
     }
 
+    /**
+     * @param array<string, mixed> $fileInfo
+     * @return array<string, mixed>
+     */
     private function normalizeFileInfo(array $fileInfo, string $fileIdentifier): array
     {
         $fileInfo['identifier'] ??= $fileIdentifier;
@@ -496,7 +541,7 @@ class Driver extends AbstractHierarchicalFilesystemDriver
         $folderIdentifier = rtrim($folderIdentifier, '/\\') . '/';
         try {
             $ret = self::$client->getFolderInfo($folderIdentifier)['info'] ?? [];
-        } catch (\Throwable) {
+        } catch (Throwable) {
             $ret = [];
         }
         //$this->log->debug("$this->instance: getFolderInfoByIdentifier($folderIdentifier): " . json_encode($ret));

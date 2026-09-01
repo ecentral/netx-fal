@@ -9,19 +9,24 @@ declare(strict_types=1);
  * LICENSE file that was distributed with this source code.
  */
 
-defined('TYPO3') || die('Access denied.');
+use Fairway\NetXFal\Driver\Driver;
+use Fairway\NetXFal\Processor\NetXImageProcessor;
+use TYPO3\CMS\Core\Cache\Frontend\VariableFrontend;
 use TYPO3\CMS\Core\Information\Typo3Version;
 use TYPO3\CMS\Core\Resource\Driver\DriverRegistry;
+use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
-$GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects'][\TYPO3\CMS\Core\Resource\ResourceStorage::class] = [
+defined('TYPO3') || die('Access denied.');
+
+$GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects'][ResourceStorage::class] = [
     'className' => \Fairway\NetXFal\Xclass\Core\Resource\ResourceStorage::class,
 ];
 
 // Driver
 $driverClass = (new Typo3Version())->getMajorVersion() < 13
     ? implode('\\', ['Fairway', 'NetXFal', 'Driver', 'DriverV12'])
-    : \Fairway\NetXFal\Driver\Driver::class;
+    : Driver::class;
 
 $driverRegistry = GeneralUtility::makeInstance(DriverRegistry::class);
 $driverRegistry->registerDriverClass(
@@ -33,24 +38,18 @@ $driverRegistry->registerDriverClass(
 
 // Caching
 $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations'][$driverClass::EXTENSION_KEY] = [
-    'frontend' => \TYPO3\CMS\Core\Cache\Frontend\VariableFrontend::class,
+    'frontend' => VariableFrontend::class,
     'groups' => ['system', 'all'],
     'options' => [
         'defaultLifetime' => 29 * 60
     ]
 ];
 
-// Extractor
-$extractorRegistry = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Resource\Index\ExtractorRegistry::class);
-$extractorRegistry->registerExtractionService(\Fairway\NetXFal\Index\Extractor::class);
-
 // Processor
-if (!isset($GLOBALS['TYPO3_CONF_VARS']['SYS']['fal']['processors']['NetXImageProcessor'])) {
-    $GLOBALS['TYPO3_CONF_VARS']['SYS']['fal']['processors']['NetXImageProcessor'] = [
-        'className' => \Fairway\NetXFal\Processor\NetXImageProcessor::class,
-        'before' => ['LocalImageProcessor'],
-    ];
-}
+$GLOBALS['TYPO3_CONF_VARS']['SYS']['fal']['processors']['NetXImageProcessor'] ??= [
+    'className' => NetXImageProcessor::class,
+    'before' => ['LocalImageProcessor'],
+];
 
 // Logging
 //$GLOBALS['TYPO3_CONF_VARS']['LOG']['Fairway']['NetXFal']['writerConfiguration'] = [\TYPO3\CMS\Core\Log\LogLevel::DEBUG => [\TYPO3\CMS\Core\Log\Writer\FileWriter::class => []]];

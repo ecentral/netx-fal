@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Fairway\NetXFal\Driver;
 
 use Fairway\NetXFal\Client\NetXClient;
+use RuntimeException;
 use TYPO3\CMS\Core\Log\Logger;
 use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Resource\Driver\AbstractHierarchicalFilesystemDriver;
@@ -37,8 +38,8 @@ class DriverV12 extends AbstractHierarchicalFilesystemDriver
         parent::__construct($configuration);
 
         $this->configuration = $configuration;
-        $this->instance = rand();
-        $this->log = GeneralUtility::makeInstance(LogManager::class)->getLogger(__CLASS__);
+        $this->instance = random_int(0, mt_getrandmax());
+        $this->log = GeneralUtility::makeInstance(LogManager::class)->getLogger(self::class);
         $this->log->debug("$this->instance: __construct(" . json_encode($configuration) . ')');
         $this->capabilities = ResourceStorage::CAPABILITY_BROWSABLE | ResourceStorage::CAPABILITY_PUBLIC | ResourceStorage::CAPABILITY_HIERARCHICAL_IDENTIFIERS;
     }
@@ -165,7 +166,7 @@ class DriverV12 extends AbstractHierarchicalFilesystemDriver
      */
     public function fileExists($fileIdentifier)
     {
-        $ret = ((substr($fileIdentifier, -1, 1) != '/') and ($this->getFileInfoByIdentifier($fileIdentifier) !== null));
+        $ret = ((!str_ends_with($fileIdentifier, '/')) and ($this->getFileInfoByIdentifier($fileIdentifier) !== null));
         $this->log->debug("$this->instance: fileExists($fileIdentifier): " . ($ret ? 'true' : 'false'));
         return $ret;
     }
@@ -480,13 +481,47 @@ class DriverV12 extends AbstractHierarchicalFilesystemDriver
      * buffer. Should not take care of header files or flushing
      * buffer before. Will be taken care of by the Storage.
      *
+     * NetX file URLs are protected API endpoints. The stream context must send
+     * the API token authorization header and keep HTTP errors readable so TYPO3
+     * can report failed downloads instead of writing invalid output.
+     *
      * @param string $identifier
      */
     public function dumpFileContents($identifier)
     {
         //$this->log->debug("$this->instance: dumpFileContents($identifier)");
+        $streamContext = stream_context_create([
+            'http' => [
+                'method'  => 'GET',
+                'header'  => [
+                    self::$client->createAuthenticationHeader(),
+                    'Accept-Encoding: gzip, deflate',
+                ],
+                'max_redirects'    => 10,
+                'protocol_version' => 1.1,
+                'timeout'          => 10,
+                'ignore_errors'    => true,
+                'ssl' => [
+                    'verify_peer'      => true,
+                    'verify_peer_name' => true,
+                ],
+            ],
+        ]);
+
+        $contents = file_get_contents(self::$client->getUrl($identifier), false, $streamContext);
+        if ($contents === false) {
+            throw new RuntimeException('Could not fetch remote file for ' . $identifier);
+        }
+        $statusLine = $http_response_header[0] ?? '';
+        if (preg_match('/^HTTP\/\S+\s+([1-5][0-9]{2})\b/', $statusLine, $matches) === 1 && (int)$matches[1] >= 400) {
+            throw new RuntimeException(sprintf('Could not fetch remote file for %s: HTTP %s', $identifier, $matches[1]));
+        }
+
         $handle = fopen('php://output', 'w');
-        fwrite($handle, file_get_contents(self::$client->getUrl($identifier))); // ex thumbnail
+        if ($handle === false) {
+            throw new RuntimeException('Could not open output stream.');
+        }
+        fwrite($handle, $contents);
         fclose($handle);
     }
 
@@ -507,7 +542,7 @@ class DriverV12 extends AbstractHierarchicalFilesystemDriver
     {
         $folderIdentifier = rtrim($folderIdentifier, '/\\') . '/';
         $id = rtrim($identifier, '/\\') . '/';
-        $ret = ($identifier and (strpos($id, $folderIdentifier) === 0));
+        $ret = ($identifier and (str_starts_with($id, $folderIdentifier)));
         $this->log->debug("$this->instance: isWithin($folderIdentifier, $identifier): " . $ret ? 'true' : 'false');
         return $ret;
     }

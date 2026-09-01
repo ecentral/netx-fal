@@ -21,6 +21,7 @@ use TYPO3\CMS\Core\Utility\GeneralUtility;
 class Cache implements SingletonInterface
 {
     private ?FrontendInterface $cache = null;
+    /** @var array<string, mixed> */
     private array $cacheData = [];
 
     public function __construct()
@@ -42,7 +43,10 @@ class Cache implements SingletonInterface
         return array_key_exists($entryIdentifier, $this->cacheData);
     }
 
-    public function set(string $entryIdentifier, $data, array $tags = [], $lifetime = null): void
+    /**
+     * @param list<string> $tags
+     */
+    public function set(string $entryIdentifier, mixed $data, array $tags = [], ?int $lifetime = null): void
     {
         if ($this->cache) {
             $this->cache->set($entryIdentifier, $data, $tags, $lifetime);

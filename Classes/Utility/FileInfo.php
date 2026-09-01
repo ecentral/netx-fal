@@ -16,31 +16,33 @@ use TYPO3\CMS\Core\Utility\PathUtility;
 
 class FileInfo
 {
-    private string $identifier;
-    private string $identifierHash;
-    private string $folderHash;
+    private readonly string $identifier;
+    private readonly string $identifierHash;
+    private readonly string $folderHash;
     private string $name;
-    private int $storage;
-    private int $fileSize;
+    private readonly int $fileSize;
     private int $width;
     private int $height;
-    private ?string $description = '';
-    private ?string $alternative = '';
-    private string $mimetype;
-    private int $ctime;
-    private int $mtime;
+    private string $description = '';
+    private string $alternative = '';
+    private readonly string $mimetype;
+    private readonly int $ctime;
+    private readonly int $mtime;
 
     private string $previewUrl;
     private string $thumbUrl;
     private string $publicUrl;
     private string $extension;
 
+    /**
+     * @param array<string, mixed>|null $configuredInformation
+     */
     public function __construct(
         Asset $asset,
         string $host,
         string $apiKey,
-        int $storage,
-        array $configuredInformation = null
+        private readonly int $storage,
+        ?array $configuredInformation = null
     ) {
         $this->identifier = (string)$asset->getId();
         $this->identifierHash = sha1($this->identifier);
@@ -49,8 +51,6 @@ class FileInfo
         $mimeTypeSniffer = new MimeTypeSniffer();
         $mimeType = $mimeTypeSniffer->getMimeType($asset->getOriginalUrl($host), $apiKey);
         $this->mimetype = $mimeType;
-
-        $this->storage = $storage;
         $this->fileSize = $asset->getSize() ?? 0;
         $this->mtime = intdiv($asset->getModificationDate(), 1000);
         $this->ctime = intdiv($asset->getCreationDate(), 1000);
@@ -64,6 +64,9 @@ class FileInfo
         $this->initDecriptions($asset, $configuredInformation);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return [
@@ -91,14 +94,17 @@ class FileInfo
         ];
     }
 
-    public function initDecriptions(Asset $asset, ?array $configuredInformation)
+    /**
+     * @param array<string, mixed>|null $configuredInformation
+     */
+    public function initDecriptions(Asset $asset, ?array $configuredInformation): void
     {
         if ($configuredInformation == null) {
             return;
         }
     }
 
-    public function initImagesSize(Asset $asset, string $host = '', string $apiKey = '')
+    public function initImagesSize(Asset $asset, string $host = '', string $apiKey = ''): void
     {
         $width = (int)($asset->getWidth() ?? 0);
         $height = (int)($asset->getHeight() ?? 0);
@@ -111,19 +117,19 @@ class FileInfo
         $this->height = $height;
     }
 
-    private function initPublicUrl(Asset $asset, string $host)
+    private function initPublicUrl(Asset $asset, string $host): void
     {
         $this->previewUrl = $asset->getPreviewUrl($host) ?? '';
         $this->thumbUrl = $asset->getThumbnailUrl($host) ?? '';
         $this->publicUrl = $asset->getOriginalUrl($host) ?? '';
     }
 
-    public function initNameAndExtension(Asset $asset)
+    public function initNameAndExtension(Asset $asset): void
     {
         $this->name = $asset->getName() ?? '';
         $this->extension = $asset->getExtension();
-        if (substr($this->name, -strlen($this->extension)) !== $this->extension) {
-            if (substr($this->name, -1) === '.') {
+        if (!str_ends_with($this->name, $this->extension)) {
+            if (str_ends_with($this->name, '.')) {
                 $this->name .= substr($this->extension, 1);
             } else {
                 $this->name .= '.' . $this->extension;
@@ -172,12 +178,12 @@ class FileInfo
         return $this->height;
     }
 
-    public function getDescription(): ?string
+    public function getDescription(): string
     {
         return $this->description;
     }
 
-    public function getAlternative(): ?string
+    public function getAlternative(): string
     {
         return $this->alternative;
     }
@@ -229,6 +235,9 @@ class FileInfo
         };
     }
 
+    /**
+     * @return array{0: int, 1: int}|null
+     */
     private function detectOriginalImageSize(Asset $asset, string $host, string $apiKey): ?array
     {
         $url = $asset->getOriginalUrl($host);
@@ -271,6 +280,9 @@ class FileInfo
         return $chunk;
     }
 
+    /**
+     * @return array{0: int, 1: int}|null
+     */
     private function detectImageSizeFromString(string $content): ?array
     {
         $imageSize = @getimagesizefromstring($content);

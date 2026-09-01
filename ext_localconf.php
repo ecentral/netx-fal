@@ -10,12 +10,10 @@ declare(strict_types=1);
  */
 
 use Fairway\NetXFal\Driver\Driver;
-use Fairway\NetXFal\Index\Extractor;
 use Fairway\NetXFal\Processor\NetXImageProcessor;
 use TYPO3\CMS\Core\Cache\Frontend\VariableFrontend;
 use TYPO3\CMS\Core\Information\Typo3Version;
 use TYPO3\CMS\Core\Resource\Driver\DriverRegistry;
-use TYPO3\CMS\Core\Resource\Index\ExtractorRegistry;
 use TYPO3\CMS\Core\Resource\ResourceStorage;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
@@ -46,10 +44,6 @@ $GLOBALS['TYPO3_CONF_VARS']['SYS']['caching']['cacheConfigurations'][$driverClas
         'defaultLifetime' => 29 * 60
     ]
 ];
-
-// Extractor
-$extractorRegistry = GeneralUtility::makeInstance(ExtractorRegistry::class);
-$extractorRegistry->registerExtractionService(Extractor::class);
 
 // Processor
 $GLOBALS['TYPO3_CONF_VARS']['SYS']['fal']['processors']['NetXImageProcessor'] ??= [

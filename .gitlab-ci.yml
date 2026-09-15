@@ -2,6 +2,13 @@ stages:
   - test
   - prepare-demo-deploy
   - deploy-demo
+  - release
+
+include:
+  - component: ${CI_SERVER_HOST}/ec/gitlab-ci-cd-components/release-ter/release@1.0.0
+    inputs:
+      typo3-api-token: ${TYPO3_API_TOKEN}
+      typo3-extension-key: ${TYPO3_EXTENSION_KEY}
 
 .private_packages: &private_packages
   - composer config bearer.packages.ecentral.dev "${PACKAGES_TOKEN}"

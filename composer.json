@@ -28,7 +28,7 @@
     }
   ],
   "type": "typo3-cms-extension",
-  "description": "Integrates NetX Digital Asset Management with TYPO3 and provides access to centrally managed digital assets from within the TYPO3 backend.",
+  "description": "NetX Fal - Integrates NetX Digital Asset Management with TYPO3 and provides access to centrally managed digital assets from within the TYPO3 backend.",
   "homepage": "https://ecentral.de/fairway-dam-typo3",
   "license": "GPL-2.0-or-later",
   "keywords": [
